@@ -225,11 +225,11 @@ func _build_ui():
 		if i < pos_array.size():
 			_create_player_ui(peers[i], NetworkManager.players[peers[i]].name, pos_array[i], Color("#b71c1c"))
 	
-	# BUTTONS
-	var btn_container = VBoxContainer.new()
-	btn_container.position = Vector2(1080, 420)
-	btn_container.size = Vector2(180, 200)
-	btn_container.add_theme_constant_override("separation", 8)
+	# BUTTONS Hộp chứa nút ngang cực kỳ cao cấp ở dưới góc màn hình phải
+	var btn_container = HBoxContainer.new()
+	btn_container.position = Vector2(700, 645)
+	btn_container.size = Vector2(560, 50)
+	btn_container.add_theme_constant_override("separation", 12)
 	add_child(btn_container)
 	
 	btn_all_in = _create_btn("ALL IN", Color("#e65100")); btn_all_in.pressed.connect(func(): send_action_to_server("ALL_IN"))
