@@ -47,15 +47,15 @@ func _build_ui():
 	bg.set_anchors_preset(Control.PRESET_FULL_RECT)
 	add_child(bg)
 	
-	# Table
+	# Table (Bàn chơi phong cách Premium Mahogany Wood)
 	var table_panel = Panel.new()
 	var ts = StyleBoxFlat.new()
-	ts.bg_color = Color("#1a6b3c")
-	ts.corner_radius_top_left = 200; ts.corner_radius_top_right = 200
-	ts.corner_radius_bottom_left = 200; ts.corner_radius_bottom_right = 200
-	ts.border_width_left = 14; ts.border_width_right = 14; ts.border_width_top = 14; ts.border_width_bottom = 14
-	ts.border_color = Color("#5c3a1e")
-	ts.shadow_size = 50; ts.shadow_color = Color(0, 0, 0, 0.7)
+	ts.bg_color = Color("#0d3c26") # Màu xanh lá đậm sang trọng của sòng bài
+	ts.corner_radius_top_left = 220; ts.corner_radius_top_right = 220
+	ts.corner_radius_bottom_left = 220; ts.corner_radius_bottom_right = 220
+	ts.border_width_left = 18; ts.border_width_right = 18; ts.border_width_top = 18; ts.border_width_bottom = 18
+	ts.border_color = Color("#3e2723") # Viền gỗ Mahogany đánh bóng
+	ts.shadow_size = 60; ts.shadow_color = Color(0, 0, 0, 0.75)
 	table_panel.add_theme_stylebox_override("panel", ts)
 	table_panel.size = Vector2(960, 460)
 	table_panel.position = Vector2(160, 130)
@@ -148,9 +148,12 @@ func _check_all_ready():
 func _create_player_ui(peer_id: int, p_name: String, pos: Vector2, accent: Color):
 	var panel = PanelContainer.new()
 	var ps = StyleBoxFlat.new()
-	ps.bg_color = Color(0, 0, 0, 0.7); ps.border_width_left = 3; ps.border_width_right = 3; ps.border_width_top = 3; ps.border_width_bottom = 3
-	ps.border_color = accent; ps.corner_radius_top_left = 10; ps.corner_radius_top_right = 10; ps.corner_radius_bottom_left = 10; ps.corner_radius_bottom_right = 10
-	ps.content_margin_left = 15; ps.content_margin_right = 15; ps.content_margin_top = 8; ps.content_margin_bottom = 8
+	ps.bg_color = Color(0.04, 0.06, 0.09, 0.8) # Glassmorphic dark blue
+	ps.border_width_left = 2; ps.border_width_right = 2; ps.border_width_top = 2; ps.border_width_bottom = 2
+	ps.border_color = Color(1, 1, 1, 0.12)
+	ps.corner_radius_top_left = 14; ps.corner_radius_top_right = 14; ps.corner_radius_bottom_left = 14; ps.corner_radius_bottom_right = 14
+	ps.content_margin_left = 18; ps.content_margin_right = 18; ps.content_margin_top = 10; ps.content_margin_bottom = 10
+	ps.shadow_size = 15; ps.shadow_color = Color(0, 0, 0, 0.4)
 	panel.add_theme_stylebox_override("panel", ps)
 	panel.position = pos
 	panel.size = Vector2(200, 80)
@@ -172,13 +175,29 @@ func _create_player_ui(peer_id: int, p_name: String, pos: Vector2, accent: Color
 	
 	var total_b = 0
 	if NetworkManager.players.has(peer_id): total_b = NetworkManager.players[peer_id].total_bullets
-	_draw_bullets(hbox, total_b, Color("#ffc107"))
+	_draw_bullets(hbox, total_b, Color("#ffb300")) # Glow màu vàng đạn neon cực ngầu
 
 func _create_btn(text: String, color: Color) -> Button:
 	var btn = Button.new(); btn.text = text; btn.custom_minimum_size = Vector2(180, 45)
-	var s = StyleBoxFlat.new(); s.bg_color = color; s.corner_radius_top_left = 8; s.corner_radius_top_right = 8; s.corner_radius_bottom_left = 8; s.corner_radius_bottom_right = 8
-	var h = s.duplicate(); h.bg_color = color.lightened(0.15)
-	btn.add_theme_stylebox_override("normal", s); btn.add_theme_stylebox_override("hover", h); btn.add_theme_font_size_override("font_size", 18)
+	var s = StyleBoxFlat.new(); s.bg_color = color
+	s.border_width_left = 1; s.border_width_right = 1; s.border_width_top = 1; s.border_width_bottom = 1
+	s.border_color = Color(1, 1, 1, 0.15)
+	s.corner_radius_top_left = 10; s.corner_radius_top_right = 10; s.corner_radius_bottom_left = 10; s.corner_radius_bottom_right = 10
+	s.shadow_size = 8; s.shadow_color = Color(0, 0, 0, 0.3)
+	
+	var h = s.duplicate()
+	h.bg_color = color.lightened(0.12)
+	h.border_color = Color(1, 1, 1, 0.3)
+	h.shadow_size = 12; h.shadow_color = color
+	h.shadow_color.a = 0.2
+	
+	var p = s.duplicate()
+	p.bg_color = color.darkened(0.15)
+	
+	btn.add_theme_stylebox_override("normal", s)
+	btn.add_theme_stylebox_override("hover", h)
+	btn.add_theme_stylebox_override("pressed", p)
+	btn.add_theme_font_size_override("font_size", 18)
 	return btn
 
 func _draw_bullets(container: HBoxContainer, count: int, color: Color):
@@ -188,8 +207,12 @@ func _draw_bullets(container: HBoxContainer, count: int, color: Color):
 		var s = StyleBoxFlat.new(); s.corner_radius_top_left = 8; s.corner_radius_top_right = 8; s.corner_radius_bottom_left = 2; s.corner_radius_bottom_right = 2
 		if i < count:
 			s.bg_color = color
+			s.shadow_size = 6
+			s.shadow_color = color
+			s.shadow_color.a = 0.35 # Hiệu ứng phát sáng dạ quang neon
 		else:
 			s.bg_color = Color(1, 1, 1, 0.08)
+			s.shadow_size = 0
 		bullet.add_theme_stylebox_override("panel", s)
 		container.add_child(bullet)
 
@@ -408,9 +431,17 @@ func client_sync_turn(turn_id: int):
 	for pid in player_panels:
 		var ps = player_panels[pid].panel.get_theme_stylebox("panel") as StyleBoxFlat
 		if pid == turn_id:
-			ps.border_color = Color.GREEN
+			# Viền phát sáng neon cực đẹp khi tới lượt!
+			ps.border_color = Color("#00e676") # Neon Green
+			ps.shadow_size = 20
+			ps.shadow_color = Color(0, 0.9, 0.46, 0.35)
 		else:
-			ps.border_color = Color("#b71c1c") if pid != multiplayer.get_unique_id() else Color("#1b5e20")
+			var is_me = (pid == multiplayer.get_unique_id())
+			ps.border_color = Color("#1b5e20") if is_me else Color("#b71c1c")
+			ps.border_color = ps.border_color.darkened(0.2)
+			ps.border_color.a = 0.4
+			ps.shadow_size = 8
+			ps.shadow_color = Color(0, 0, 0, 0.4)
 			
 	if turn_id == multiplayer.get_unique_id():
 		info_label.text = "LƯỢT CỦA BẠN!"

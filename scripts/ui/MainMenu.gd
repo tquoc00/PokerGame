@@ -7,28 +7,49 @@ var players_vbox: VBoxContainer
 var start_btn: Button
 
 func _ready():
-	# Xóa UI cũ
+	# Xóa UI cũ (giữ lại background nếu có)
 	for c in get_children():
 		if c.name != "ColorRect" and c.name != "Title" and c.name != "Subtitle":
 			c.queue_free()
 			
-	# --- Màn hình chọn ---
+	# --- THIẾT KẾ PHONG CÁCH GLASSMORPHISM SIÊU CAO CẤP ---
+	var input_normal = StyleBoxFlat.new()
+	input_normal.bg_color = Color(1, 1, 1, 0.04)
+	input_normal.border_width_left = 1; input_normal.border_width_right = 1; input_normal.border_width_top = 1; input_normal.border_width_bottom = 1
+	input_normal.border_color = Color(1, 1, 1, 0.12)
+	input_normal.corner_radius_top_left = 8; input_normal.corner_radius_top_right = 8; input_normal.corner_radius_bottom_left = 8; input_normal.corner_radius_bottom_right = 8
+	input_normal.content_margin_left = 15; input_normal.content_margin_right = 15
+	
+	var input_focus = input_normal.duplicate()
+	input_focus.bg_color = Color(1, 1, 1, 0.07)
+	input_focus.border_color = Color("#00b0ff") # Neon Blue
+	input_focus.shadow_size = 10
+	input_focus.shadow_color = Color(0, 0.69, 1.0, 0.25)
+
+	# Root CenterContainer giúp toàn bộ UI tự động cân giữa hoàn hảo trên mọi kích thước màn hình
+	var center_root = CenterContainer.new()
+	center_root.set_anchors_preset(Control.PRESET_FULL_RECT)
+	add_child(center_root)
+	
 	var center = VBoxContainer.new()
-	center.position = Vector2(440, 320)
-	center.size = Vector2(400, 300)
+	center.custom_minimum_size = Vector2(400, 280)
 	center.add_theme_constant_override("separation", 20)
-	add_child(center)
+	center_root.add_child(center)
 	
 	username_input = LineEdit.new()
 	username_input.placeholder_text = "Tên của bạn..."
-	username_input.add_theme_font_size_override("font_size", 24)
+	username_input.add_theme_font_size_override("font_size", 20)
 	username_input.alignment = HORIZONTAL_ALIGNMENT_CENTER
+	username_input.add_theme_stylebox_override("normal", input_normal)
+	username_input.add_theme_stylebox_override("focus", input_focus)
 	center.add_child(username_input)
 	
 	ip_input = LineEdit.new()
 	ip_input.placeholder_text = "Nhập IP để Join (để trống nếu Host)"
-	ip_input.add_theme_font_size_override("font_size", 24)
+	ip_input.add_theme_font_size_override("font_size", 20)
 	ip_input.alignment = HORIZONTAL_ALIGNMENT_CENTER
+	ip_input.add_theme_stylebox_override("normal", input_normal)
+	ip_input.add_theme_stylebox_override("focus", input_focus)
 	center.add_child(ip_input)
 	
 	var hbox = HBoxContainer.new()
@@ -36,10 +57,7 @@ func _ready():
 	hbox.alignment = BoxContainer.ALIGNMENT_CENTER
 	center.add_child(hbox)
 	
-	var btn_host = Button.new()
-	btn_host.text = "TẠO PHÒNG (HOST)"
-	btn_host.custom_minimum_size = Vector2(180, 60)
-	btn_host.add_theme_font_size_override("font_size", 20)
+	var btn_host = _create_fancy_btn("TẠO PHÒNG (HOST)", Color("#1565c0"))
 	btn_host.pressed.connect(_on_host)
 	
 	if OS.has_feature("web"):
@@ -49,50 +67,77 @@ func _ready():
 		
 	hbox.add_child(btn_host)
 	
-	var btn_join = Button.new()
-	btn_join.text = "THAM GIA (JOIN)"
-	btn_join.custom_minimum_size = Vector2(180, 60)
-	btn_join.add_theme_font_size_override("font_size", 20)
+	var btn_join = _create_fancy_btn("THAM GIA (JOIN)", Color("#2e7d32"))
 	btn_join.pressed.connect(_on_join)
 	hbox.add_child(btn_join)
 	
-	# --- Màn hình Lobby (Ẩn lúc đầu) ---
+	# --- Màn hình Lobby ---
 	lobby_panel = Panel.new()
 	var ps = StyleBoxFlat.new()
-	ps.bg_color = Color(0, 0, 0, 0.8)
-	ps.corner_radius_top_left = 15; ps.corner_radius_top_right = 15
-	ps.corner_radius_bottom_left = 15; ps.corner_radius_bottom_right = 15
+	ps.bg_color = Color(0.04, 0.06, 0.09, 0.9) # Dark translucent blue
+	ps.border_width_left = 1; ps.border_width_right = 1; ps.border_width_top = 1; ps.border_width_bottom = 1
+	ps.border_color = Color(1, 1, 1, 0.18)
+	ps.corner_radius_top_left = 18; ps.corner_radius_top_right = 18; ps.corner_radius_bottom_left = 18; ps.corner_radius_bottom_right = 18
+	ps.shadow_size = 40; ps.shadow_color = Color(0, 0, 0, 0.7)
 	lobby_panel.add_theme_stylebox_override("panel", ps)
-	lobby_panel.size = Vector2(500, 400)
-	lobby_panel.position = Vector2(390, 250)
+	lobby_panel.custom_minimum_size = Vector2(480, 380)
 	lobby_panel.hide()
-	add_child(lobby_panel)
+	
+	var lobby_center = CenterContainer.new()
+	lobby_center.set_anchors_preset(Control.PRESET_FULL_RECT)
+	lobby_center.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(lobby_center)
+	lobby_center.add_child(lobby_panel)
+	
+	var lobby_vbox = VBoxContainer.new()
+	lobby_vbox.set_anchors_preset(Control.PRESET_FULL_RECT)
+	lobby_vbox.add_theme_constant_override("separation", 20)
+	lobby_vbox.alignment = BoxContainer.ALIGNMENT_CENTER
+	lobby_panel.add_child(lobby_vbox)
 	
 	var lbl = Label.new()
 	lbl.text = "ĐANG CHỜ NGƯỜI CHƠI..."
 	lbl.add_theme_font_size_override("font_size", 24)
 	lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	lbl.position = Vector2(0, 20)
-	lbl.size = Vector2(500, 40)
-	lobby_panel.add_child(lbl)
+	lobby_vbox.add_child(lbl)
 	
 	players_vbox = VBoxContainer.new()
-	players_vbox.position = Vector2(50, 80)
-	players_vbox.size = Vector2(400, 200)
-	lobby_panel.add_child(players_vbox)
+	players_vbox.alignment = BoxContainer.ALIGNMENT_CENTER
+	players_vbox.add_theme_constant_override("separation", 10)
+	lobby_vbox.add_child(players_vbox)
 	
-	start_btn = Button.new()
-	start_btn.text = "BẮT ĐẦU GAME"
-	start_btn.add_theme_font_size_override("font_size", 24)
-	start_btn.position = Vector2(100, 320)
-	start_btn.size = Vector2(300, 50)
+	start_btn = _create_fancy_btn("BẮT ĐẦU GAME", Color("#ff8f00"))
+	start_btn.custom_minimum_size = Vector2(320, 55)
 	start_btn.pressed.connect(_on_start_game)
 	start_btn.hide()
-	lobby_panel.add_child(start_btn)
+	lobby_vbox.add_child(start_btn)
 	
 	NetworkManager.player_list_changed.connect(_update_lobby)
 	multiplayer.connection_failed.connect(_on_connection_error)
 	multiplayer.server_disconnected.connect(_on_server_died)
+
+func _create_fancy_btn(text: String, color: Color) -> Button:
+	var btn = Button.new(); btn.text = text; btn.custom_minimum_size = Vector2(180, 50)
+	var s = StyleBoxFlat.new(); s.bg_color = color
+	s.border_width_left = 1; s.border_width_right = 1; s.border_width_top = 1; s.border_width_bottom = 1
+	s.border_color = Color(1, 1, 1, 0.15)
+	s.corner_radius_top_left = 10; s.corner_radius_top_right = 10; s.corner_radius_bottom_left = 10; s.corner_radius_bottom_right = 10
+	s.shadow_size = 10; s.shadow_color = Color(0, 0, 0, 0.3)
+	
+	var h = s.duplicate()
+	h.bg_color = color.lightened(0.12)
+	h.border_color = Color(1, 1, 1, 0.3)
+	h.shadow_size = 15; h.shadow_color = color
+	h.shadow_color.a = 0.2
+	
+	var p = s.duplicate()
+	p.bg_color = color.darkened(0.15)
+	
+	btn.add_theme_stylebox_override("normal", s)
+	btn.add_theme_stylebox_override("hover", h)
+	btn.add_theme_stylebox_override("pressed", p)
+	btn.add_theme_font_size_override("font_size", 18)
+	return btn
 
 func _on_connection_error():
 	var lbl = lobby_panel.get_child(0) as Label
