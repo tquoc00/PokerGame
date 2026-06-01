@@ -111,9 +111,9 @@ func _build_ui():
 	btn_container.add_theme_constant_override("separation", 10)
 	add_child(btn_container)
 	
-	btn_all_in = _create_btn("⚡ ALL IN", Color("#e65100")); btn_all_in.pressed.connect(func(): _send_action("ALL_IN"))
-	btn_call = _create_btn("✦ CALL", Color("#2e7d32")); btn_call.pressed.connect(func(): _send_action("CALL"))
-	btn_fold = _create_btn("✕ FOLD", Color("#c62828")); btn_fold.pressed.connect(func(): _send_action("FOLD"))
+	btn_all_in = _create_btn("⚡ ALL IN", Color("#e65100")); btn_all_in.pressed.connect(func(): _send_action.rpc_id(1, "ALL_IN"))
+	btn_call = _create_btn("✦ CALL", Color("#2e7d32")); btn_call.pressed.connect(func(): _send_action.rpc_id(1, "CALL"))
+	btn_fold = _create_btn("✕ FOLD", Color("#c62828")); btn_fold.pressed.connect(func(): _send_action.rpc_id(1, "FOLD"))
 	btn_container.add_child(btn_all_in); btn_container.add_child(btn_call); btn_container.add_child(btn_fold)
 	_disable_buttons()
 	
@@ -228,9 +228,10 @@ func start_server_game():
 	# Broadcast Start
 	rpc("client_start_game", hand_data, comm_data, pot_bullets, turn_order[current_turn_idx])
 
-@rpc("any_peer", "reliable")
+@rpc("any_peer", "reliable", "call_local")
 func _send_action(action: String):
 	var sender_id = multiplayer.get_remote_sender_id()
+	if sender_id == 0: sender_id = 1 # Fallback an toàn nếu gọi trực tiếp trên Server
 	if not multiplayer.is_server(): return
 	if state == GameState.SHOWDOWN or state == GameState.WAITING: return
 	if sender_id != turn_order[current_turn_idx]: return # Not their turn
