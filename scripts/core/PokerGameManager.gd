@@ -91,11 +91,13 @@ func _build_ui():
 	
 	# Tạo Panel cho người chơi
 	var my_id = multiplayer.get_unique_id()
-	var peers = NetworkManager.players.keys()
-	peers.erase(my_id)
+	var peers = []
+	for k in NetworkManager.players.keys():
+		if int(k) != my_id:
+			peers.append(int(k))
 	
 	# Layout positions: Bottom (Local), Top, Left, Right
-	_create_player_ui(my_id, NetworkManager.players[my_id].name, Vector2(540, 560), Color("#1b5e20"))
+	_create_player_ui(my_id, NetworkManager.players[my_id].name if NetworkManager.players.has(my_id) else "Bạn", Vector2(540, 560), Color("#1b5e20"))
 	
 	var pos_array = [Vector2(540, 10), Vector2(30, 250), Vector2(1050, 250)]
 	for i in range(peers.size()):
@@ -151,7 +153,10 @@ func _create_player_ui(peer_id: int, p_name: String, pos: Vector2, accent: Color
 	add_child(panel)
 	
 	player_panels[peer_id] = { "panel": panel, "name_label": lbl, "bullet_box": hbox, "card_uis": [] }
-	_draw_bullets(hbox, NetworkManager.players[peer_id].total_bullets, Color("#ffc107"))
+	
+	var total_b = 0
+	if NetworkManager.players.has(peer_id): total_b = NetworkManager.players[peer_id].total_bullets
+	_draw_bullets(hbox, total_b, Color("#ffc107"))
 
 func _create_btn(text: String, color: Color) -> Button:
 	var btn = Button.new(); btn.text = text; btn.custom_minimum_size = Vector2(180, 45)

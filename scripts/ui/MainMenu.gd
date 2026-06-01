@@ -123,4 +123,4 @@ func _update_lobby():
 		players_vbox.add_child(l)
 
 func _on_start_game():
-	NetworkManager.rpc("start_game")
+	NetworkManager.start_game.rpc()
