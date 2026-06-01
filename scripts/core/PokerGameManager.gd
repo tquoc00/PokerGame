@@ -183,6 +183,15 @@ func server_handle_player_disconnect(disconnected_id: int):
 		# Kiểm tra xem ván đấu có kết thúc sớm vì những người khác đã fold không
 		_server_check_round_end()
 
+func _server_check_round_end():
+	if state == GameState.SHOWDOWN or state == GameState.WAITING: return
+	var active_count = 0
+	for pid in active_players:
+		if not active_players[pid].has_folded: active_count += 1
+		
+	if active_count <= 1:
+		_server_force_showdown()
+
 @rpc("authority", "reliable")
 func client_remove_disconnected_player(disconnected_id: int):
 	if player_panels.has(disconnected_id):
