@@ -835,13 +835,32 @@ func _send_action(action: String):
 	_server_next_turn()
 
 func _server_next_turn():
+	# Kiểm tra xem có cần bỏ qua vòng cược nếu mọi người (hoặc trừ tối đa 1 người) đã All-in (hết tiền)
+	var active_not_folded = 0
+	var players_with_money = 0
+	for pid in active_players:
+		if not active_players[pid].has_folded:
+			active_not_folded += 1
+			if NetworkManager.players.has(pid) and NetworkManager.players[pid].money > 0:
+				players_with_money += 1
+				
+	if active_not_folded >= 2 and players_with_money <= 1:
+		# Tất cả (hoặc tất cả trừ 1 người) đã All-in. Tự động lật hết bài chung và Showdown!
+		while state != GameState.RIVER:
+			if state == GameState.PRE_FLOP: state = GameState.FLOP
+			elif state == GameState.FLOP: state = GameState.TURN
+			elif state == GameState.TURN: state = GameState.RIVER
+			send_rpc("client_advance_phase", [state])
+		_server_force_showdown()
+		return
+
 	current_turn_idx = (current_turn_idx + 1) % turn_order.size()
 	
-	# Lặp qua đến khi gặp người chưa fold
+	# Lặp qua đến khi gặp người chưa fold và CÒN TIỀN (chưa All-in/hết tiền)
 	var start_idx = current_turn_idx
-	while active_players[turn_order[current_turn_idx]].has_folded:
+	while active_players[turn_order[current_turn_idx]].has_folded or (NetworkManager.players.has(turn_order[current_turn_idx]) and NetworkManager.players[turn_order[current_turn_idx]].money <= 0):
 		current_turn_idx = (current_turn_idx + 1) % turn_order.size()
-		if current_turn_idx == start_idx: break # Everyone folded?
+		if current_turn_idx == start_idx: break # Everyone folded or is all-in?
 	
 	# Tạm thời đơn giản: Đổi vòng ngay nếu ai cũng đánh 1 lượt
 	if current_turn_idx == 0:
@@ -1482,6 +1501,11 @@ func _on_bot_turn(bot_id: int):
 	await get_tree().create_timer(randf_range(1.2, 2.2)).timeout
 	if state == GameState.SHOWDOWN or state == GameState.WAITING: return
 	if turn_order.is_empty() or turn_order[current_turn_idx] != bot_id: return
+	
+	# Nếu Bot hết tiền (All-in), tự động chuyển lượt mà không thực hiện hành động
+	if NetworkManager.players.has(bot_id) and NetworkManager.players[bot_id].money <= 0:
+		_server_next_turn()
+		return
 	
 	# Đánh giá bài của Bot hiện tại
 	var bot_cards: Array[Card] = []
