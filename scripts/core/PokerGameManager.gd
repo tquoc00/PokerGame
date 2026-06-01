@@ -34,6 +34,9 @@ var card_scene: PackedScene = preload("res://scenes/prefabs/CardUI.tscn")
 var result_overlay: Panel
 var result_label: Label
 var elim_overlay: ColorRect
+var is_mouse_over_trigger: bool = false
+var is_mouse_over_popup: bool = false
+var _guide_tween: Tween
 
 func _ready():
 	_build_ui()
@@ -477,21 +480,48 @@ func _build_ui():
 	
 	# Kết nối sự kiện chuột trỏ vào / trỏ ra để tạo hiệu ứng Pop-up tuyệt đẹp!
 	guide_trigger.mouse_entered.connect(func():
-		guide_popup.move_to_front()
-		guide_popup.show()
-		var tw = create_tween().set_parallel(true)
-		tw.tween_property(guide_popup, "modulate:a", 1.0, 0.25).set_trans(Tween.TRANS_SINE)
-		tw.tween_property(guide_popup, "position:y", 70.0, 0.25).set_trans(Tween.TRANS_QUART).set_ease(Tween.EASE_OUT)
+		is_mouse_over_trigger = true
+		_update_guide_popup(guide_popup)
+	)
+	guide_trigger.mouse_exited.connect(func():
+		is_mouse_over_trigger = false
+		_update_guide_popup(guide_popup)
 	)
 	
-	guide_trigger.mouse_exited.connect(func():
-		var tw = create_tween().set_parallel(true)
-		tw.tween_property(guide_popup, "modulate:a", 0.0, 0.2).set_trans(Tween.TRANS_SINE)
-		tw.tween_property(guide_popup, "position:y", 90.0, 0.2).set_trans(Tween.TRANS_SINE)
-		await tw.finished
-		if guide_popup.modulate.a == 0.0:
-			guide_popup.hide()
+	guide_popup.mouse_entered.connect(func():
+		is_mouse_over_popup = true
+		_update_guide_popup(guide_popup)
 	)
+	guide_popup.mouse_exited.connect(func():
+		is_mouse_over_popup = false
+		_update_guide_popup(guide_popup)
+	)
+
+func _update_guide_popup(guide_popup: PanelContainer):
+	if is_mouse_over_trigger or is_mouse_over_popup:
+		if _guide_tween:
+			_guide_tween.kill()
+		
+		guide_popup.move_to_front()
+		guide_popup.show()
+		
+		_guide_tween = create_tween().set_parallel(true)
+		_guide_tween.tween_property(guide_popup, "modulate:a", 1.0, 0.25).set_trans(Tween.TRANS_SINE)
+		_guide_tween.tween_property(guide_popup, "position:y", 70.0, 0.25).set_trans(Tween.TRANS_QUART).set_ease(Tween.EASE_OUT)
+	else:
+		# Tạo cầu nối trễ 120ms khi người chơi chuyển chuột từ nút sang bảng
+		await get_tree().create_timer(0.12).timeout
+		if not is_mouse_over_trigger and not is_mouse_over_popup:
+			if _guide_tween:
+				_guide_tween.kill()
+			
+			_guide_tween = create_tween().set_parallel(true)
+			_guide_tween.tween_property(guide_popup, "modulate:a", 0.0, 0.2).set_trans(Tween.TRANS_SINE)
+			_guide_tween.tween_property(guide_popup, "position:y", 90.0, 0.2).set_trans(Tween.TRANS_SINE)
+			await _guide_tween.finished
+			if not is_mouse_over_trigger and not is_mouse_over_popup and guide_popup.modulate.a == 0.0:
+				guide_popup.hide()
+
 
 func _on_host_start_round():
 	var host_settings = get_node_or_null("HostSettings")
