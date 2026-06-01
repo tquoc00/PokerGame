@@ -881,7 +881,6 @@ func _server_force_showdown():
 			best_hand_name = result.name
 
 	var winner_name = best_name
-	var winner_hand = best_hand_name
 	var won_amount = pot_money
 	var eliminated_name = ""
 	
@@ -895,7 +894,40 @@ func _server_force_showdown():
 			eliminated_name = NetworkManager.players[pid].name
 			break
 				
-	send_rpc("client_announce_result", [winner_name, winner_hand, "", won_amount, eliminated_name])
+	# Lập bảng xếp hạng người chơi
+	var ranking_list = []
+	for pid in active_players:
+		var p_name = NetworkManager.players[pid].name if NetworkManager.players.has(pid) else "Người chơi"
+		var is_folded = active_players[pid].has_folded
+		var hand_name = "Đã úp bài (Folded)"
+		var score = -1
+		
+		if not is_folded:
+			var combined_cards: Array[Card] = []
+			combined_cards.append_array(server_player_hands[pid])
+			combined_cards.append_array(community_cards)
+			
+			var result = HandEvaluator.evaluate(combined_cards)
+			score = int(result.rank) * 10000000 + result.score
+			hand_name = result.name
+			
+		ranking_list.append({
+			"pid": pid,
+			"name": p_name,
+			"hand": hand_name,
+			"score": score,
+			"is_folded": is_folded,
+			"is_winner": false
+		})
+		
+	ranking_list.sort_custom(func(a, b): return a.score > b.score)
+	
+	if best_pid != -1:
+		for item in ranking_list:
+			if item.pid == best_pid:
+				item.is_winner = true
+				
+	send_rpc("client_announce_result", [winner_name, won_amount, ranking_list, eliminated_name])
 	
 	await get_tree().create_timer(5.0).timeout
 	
@@ -1016,21 +1048,152 @@ func client_showdown():
 		if not cui.is_face_up: cui.flip_up()
 	
 @rpc("authority", "reliable", "call_local")
-func client_announce_result(w_name: String, w_hand: String, l_name: String, added_b: int, elim_name: String):
-	var lines = []
-	if w_name != "":
-		lines.append("★ WINNER: " + w_name + " ★")
-		lines.append("-> Bai manh nhat: " + w_hand)
-		lines.append("-> Nhan tron hu tien: " + str(added_b) + " $")
-	if elim_name != "":
-		lines.append("")
-		lines.append("❌ NGUOI CHOI DA BI LOAI: " + elim_name + " (Het tien!)")
+func client_announce_result(winner_name: String, won_amount: int, ranking_list: Array, eliminated_name: String):
+	info_label.text = "VÁN ĐẤU KẾT THÚC!"
+	_show_result_overlay_leaderboard(winner_name, won_amount, ranking_list, eliminated_name)
 	
-	info_label.text = "VAN DAU KET THUC!"
-	_show_result_overlay("\n".join(lines))
-	
-	if elim_name != "":
+	if eliminated_name != "":
 		_play_elimination_effect()
+
+func get_accented_hand_name(unaccented_name: String) -> String:
+	match unaccented_name:
+		"Thung pha Sanh Hoang Gia (Royal Flush)": return "Thùng Phá Sảnh Hoàng Gia (Royal Flush)"
+		"Thung pha Sanh (Straight Flush)": return "Thùng Phá Sảnh (Straight Flush)"
+		"Tu Quy (Four of a Kind)": return "Tứ Quý (Four of a Kind)"
+		"Cu Lu (Full House)": return "Cù Lũ (Full House)"
+		"Thung (Flush)": return "Thùng (Flush)"
+		"Sanh (Straight)": return "Sảnh (Straight)"
+		"Sam Co (Three of a Kind)": return "Sám Cô (Three of a Kind)"
+		"Thu (Two Pair)": return "Thú (Two Pair)"
+		"Mot Doi (One Pair)": return "Một Đôi (One Pair)"
+		"Mau Thau (High Card)": return "Mậu Thầu (High Card)"
+		"Mọi đối thủ đã rút lui": return "Mọi đối thủ đã rút lui 🏃"
+		_: return unaccented_name
+
+func _show_result_overlay_leaderboard(winner_name: String, won_amount: int, ranking_list: Array, eliminated_name: String):
+	for child in result_overlay.get_children():
+		if child == result_label:
+			result_label.hide()
+		else:
+			child.queue_free()
+			
+	var margin = MarginContainer.new()
+	margin.set_anchors_preset(Control.PRESET_FULL_RECT)
+	margin.add_theme_constant_override("margin_left", 30)
+	margin.add_theme_constant_override("margin_right", 30)
+	margin.add_theme_constant_override("margin_top", 20)
+	margin.add_theme_constant_override("margin_bottom", 20)
+	result_overlay.add_child(margin)
+	
+	var vbox = VBoxContainer.new()
+	vbox.add_theme_constant_override("separation", 14)
+	vbox.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	margin.add_child(vbox)
+	
+	var title = Label.new()
+	title.text = "🏆 BẢNG THỨ HẠNG VÁN ĐẤU 🏆"
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	title.add_theme_font_size_override("font_size", 22)
+	title.add_theme_color_override("font_color", Color("#ffd54f"))
+	title.add_theme_constant_override("outline_size", 4)
+	title.add_theme_color_override("font_outline_color", Color.BLACK)
+	vbox.add_child(title)
+	
+	var grid = GridContainer.new()
+	grid.columns = 4
+	grid.add_theme_constant_override("h_separation", 45)
+	grid.add_theme_constant_override("v_separation", 10)
+	grid.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	grid.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	vbox.add_child(grid)
+	
+	var headers = ["Trạng Thái", "Người Chơi", "Hạng Bài (Tổ Hợp)", "Kết Quả / Tiền cược"]
+	for h in headers:
+		var h_lbl = Label.new()
+		h_lbl.text = h
+		h_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		h_lbl.add_theme_font_size_override("font_size", 14)
+		h_lbl.add_theme_color_override("font_color", Color("#90caf9"))
+		h_lbl.add_theme_constant_override("outline_size", 2)
+		h_lbl.add_theme_color_override("font_outline_color", Color.BLACK)
+		grid.add_child(h_lbl)
+		
+	var idx = 1
+	for item in ranking_list:
+		var status_lbl = Label.new()
+		if item.is_winner:
+			status_lbl.text = "👑 WINNER"
+			status_lbl.add_theme_color_override("font_color", Color("#ffd54f"))
+			status_lbl.add_theme_font_size_override("font_size", 14)
+		else:
+			status_lbl.text = str(idx) + ". LOOSER"
+			status_lbl.add_theme_color_override("font_color", Color("#b0bec5"))
+			status_lbl.add_theme_font_size_override("font_size", 13)
+		status_lbl.add_theme_constant_override("outline_size", 2)
+		status_lbl.add_theme_color_override("font_outline_color", Color.BLACK)
+		grid.add_child(status_lbl)
+		
+		var name_lbl = Label.new()
+		name_lbl.text = item.name
+		if item.is_winner:
+			name_lbl.add_theme_color_override("font_color", Color("#ffd54f"))
+			name_lbl.add_theme_font_size_override("font_size", 14)
+		else:
+			name_lbl.add_theme_color_override("font_color", Color.WHITE)
+			name_lbl.add_theme_font_size_override("font_size", 13)
+		name_lbl.add_theme_constant_override("outline_size", 2)
+		name_lbl.add_theme_color_override("font_outline_color", Color.BLACK)
+		grid.add_child(name_lbl)
+		
+		var hand_lbl = Label.new()
+		hand_lbl.text = get_accented_hand_name(item.hand)
+		if item.is_winner:
+			hand_lbl.add_theme_color_override("font_color", Color("#ffd54f"))
+			hand_lbl.add_theme_font_size_override("font_size", 14)
+		elif item.is_folded:
+			hand_lbl.add_theme_color_override("font_color", Color("#ef5350"))
+			hand_lbl.add_theme_font_size_override("font_size", 13)
+		else:
+			hand_lbl.add_theme_color_override("font_color", Color("#81c784"))
+			hand_lbl.add_theme_font_size_override("font_size", 13)
+		hand_lbl.add_theme_constant_override("outline_size", 2)
+		hand_lbl.add_theme_color_override("font_outline_color", Color.BLACK)
+		grid.add_child(hand_lbl)
+		
+		var money_lbl = Label.new()
+		if item.is_winner:
+			money_lbl.text = "+" + str(won_amount) + " $"
+			money_lbl.add_theme_color_override("font_color", Color("#00e676"))
+			money_lbl.add_theme_font_size_override("font_size", 14)
+		else:
+			money_lbl.text = "Mất cược"
+			money_lbl.add_theme_color_override("font_color", Color("#b0bec5"))
+			money_lbl.add_theme_font_size_override("font_size", 13)
+		money_lbl.add_theme_constant_override("outline_size", 2)
+		money_lbl.add_theme_color_override("font_outline_color", Color.BLACK)
+		grid.add_child(money_lbl)
+		
+		if not item.is_winner:
+			idx += 1
+			
+	if eliminated_name != "":
+		var elim = Label.new()
+		elim.text = "💀 " + eliminated_name + " đã bị loại khỏi bàn chơi vì cạn sạch tiền cược!"
+		elim.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		elim.add_theme_font_size_override("font_size", 13)
+		elim.add_theme_color_override("font_color", Color("#ff1744"))
+		elim.add_theme_constant_override("outline_size", 2)
+		elim.add_theme_color_override("font_outline_color", Color.BLACK)
+		vbox.add_child(elim)
+		
+	result_overlay.move_to_front()
+	result_overlay.modulate.a = 0.0
+	result_overlay.scale = Vector2(0.8, 0.8)
+	result_overlay.pivot_offset = result_overlay.size / 2.0
+	result_overlay.show()
+	var tw = create_tween().set_parallel(true)
+	tw.tween_property(result_overlay, "modulate:a", 1.0, 0.45).set_trans(Tween.TRANS_SINE)
+	tw.tween_property(result_overlay, "scale", Vector2(1.0, 1.0), 0.45).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 
 func _show_result_overlay(msg: String):
 	result_overlay.move_to_front()
@@ -1161,12 +1324,29 @@ func _server_force_instant_winner(winner_pid: int):
 		NetworkManager.players[winner_pid].money += pot_money
 		send_rpc("client_sync_money", [winner_pid, NetworkManager.players[winner_pid].money])
 		
+	# Lập bảng xếp hạng người chơi
+	var ranking_list = []
+	for pid in active_players:
+		var p_name = NetworkManager.players[pid].name if NetworkManager.players.has(pid) else "Người chơi"
+		var is_winner = (pid == winner_pid)
+		var is_folded = active_players[pid].has_folded
+		var hand_name = "Mọi đối thủ đã rút lui" if is_winner else "Đã úp bài (Folded)"
+		ranking_list.append({
+			"pid": pid,
+			"name": p_name,
+			"hand": hand_name,
+			"score": 1 if is_winner else -1,
+			"is_folded": is_folded,
+			"is_winner": is_winner
+		})
+	ranking_list.sort_custom(func(a, b): return a.score > b.score)
+	
 	for pid in active_players:
 		if NetworkManager.players[pid].money <= 0:
 			eliminated_name = NetworkManager.players[pid].name
 			break
 			
-	send_rpc("client_announce_result", [winner_name, "Mọi đối thủ đã rút lui", "", won_amount, eliminated_name])
+	send_rpc("client_announce_result", [winner_name, won_amount, ranking_list, eliminated_name])
 	
 	await get_tree().create_timer(5.0).timeout
 	
