@@ -116,7 +116,7 @@ func start_game():
 	ready_peers.clear() # Reset danh sách sẵn sàng trước khi vào bàn chơi
 	get_tree().change_scene_to_file("res://scenes/main/Table.tscn")
 
-@rpc("any_peer", "reliable")
+@rpc("any_peer", "reliable", "call_local")
 func server_notify_ready():
 	if not multiplayer.is_server(): return
 	var sender_id = multiplayer.get_remote_sender_id()
