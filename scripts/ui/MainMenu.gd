@@ -393,10 +393,10 @@ func _on_single_player():
 	NetworkManager.is_single_player = true
 	NetworkManager.my_name = name_input
 	NetworkManager.players = {
-		1: { "name": name_input, "money": 1000 },
-		2: { "name": "Máy A (Bot Đỏ)", "money": 1000 },
-		3: { "name": "Máy B (Bot Xanh)", "money": 1000 },
-		4: { "name": "Máy C (Bot Vàng)", "money": 1000 }
+		1: { "name": name_input, "money": NetworkManager.load_player_money(name_input) },
+		2: { "name": "Máy A (Bot Đỏ)", "money": NetworkManager.load_player_money("Máy A (Bot Đỏ)") },
+		3: { "name": "Máy B (Bot Xanh)", "money": NetworkManager.load_player_money("Máy B (Bot Xanh)") },
+		4: { "name": "Máy C (Bot Vàng)", "money": NetworkManager.load_player_money("Máy C (Bot Vàng)") }
 	}
 	get_tree().change_scene_to_file("res://scenes/main/Table.tscn")
 

@@ -1065,6 +1065,14 @@ func client_sync_pot(pot: int, actor_id: int, action: String):
 func client_sync_money(pid: int, total: int):
 	NetworkManager.players[pid].money = total
 	_draw_money(player_panels[pid].bullet_box, total, "$ ")
+	
+	# Đồng bộ lưu số dư vào file cấu hình
+	var p_name = NetworkManager.players[pid].name
+	var my_id = multiplayer.get_unique_id()
+	if pid == my_id:
+		NetworkManager.save_player_money(p_name, total)
+	elif multiplayer.is_server() and p_name.begins_with("Máy "):
+		NetworkManager.save_player_money(p_name, total)
 
 @rpc("authority", "reliable", "call_local")
 func client_advance_phase(new_state: int):

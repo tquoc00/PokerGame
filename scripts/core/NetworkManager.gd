@@ -4,11 +4,29 @@ signal player_list_changed
 
 const PORT = 8080
 const MAX_PLAYERS = 4
+const SAVE_PATH = "user://player_bank.cfg"
 
 var players = {} # { peer_id: { "name": String, "money": 1000 } }
 var my_name = ""
 var ready_peers = [] # Danh sách các peer đã sẵn sàng trong Table scene
 var is_single_player: bool = false
+
+# Tải số tiền của người chơi từ file cấu hình cục bộ, mặc định 1000 nếu chưa có
+func load_player_money(p_name: String) -> int:
+	var config = ConfigFile.new()
+	var err = config.load(SAVE_PATH)
+	if err == OK:
+		return config.get_value("bank", p_name, 1000)
+	return 1000
+
+# Lưu số tiền của người chơi vào file cấu hình cục bộ
+func save_player_money(p_name: String, amount: int):
+	var config = ConfigFile.new()
+	config.load(SAVE_PATH)
+	config.set_value("bank", p_name, amount)
+	var err = config.save(SAVE_PATH)
+	if err != OK:
+		print("Lỗi lưu trữ số dư tài khoản của: ", p_name)
 
 func host_game(player_name: String):
 	if OS.has_feature("web"):
@@ -23,7 +41,7 @@ func host_game(player_name: String):
 		return false
 	
 	multiplayer.multiplayer_peer = peer
-	players[1] = { "name": player_name, "money": 1000 }
+	players[1] = { "name": player_name, "money": load_player_money(player_name) }
 	player_list_changed.emit()
 	return true
 
@@ -72,7 +90,7 @@ func _on_peer_disconnected(id: int):
 
 func _on_connected_to_server():
 	print("Connected to server!")
-	rpc_id(1, "register_player", multiplayer.get_unique_id(), my_name)
+	rpc_id(1, "register_player", multiplayer.get_unique_id(), my_name, load_player_money(my_name))
 
 func _on_connection_failed():
 	print("Connection failed!")
@@ -84,12 +102,12 @@ func _on_server_disconnected():
 	get_tree().change_scene_to_file("res://scenes/main/Menu.tscn")
 
 @rpc("any_peer", "reliable")
-func register_player(id: int, p_name: String):
+func register_player(id: int, p_name: String, p_money: int):
 	if multiplayer.is_server():
 		if players.size() >= MAX_PLAYERS:
 			rpc_id(id, "client_reject_join", "PHÒNG ĐÃ ĐẦY! (TỐI ĐA 4 NGƯỜI)")
 			return
-		players[id] = { "name": p_name, "money": 1000 }
+		players[id] = { "name": p_name, "money": p_money }
 		rpc("sync_players", players)
 
 @rpc("authority", "reliable")
