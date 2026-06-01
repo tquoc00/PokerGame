@@ -48,12 +48,16 @@ var challenge_btn_in: Button
 var challenge_btn_out: Button
 
 func _ready():
-	if multiplayer.is_server():
-		if not NetworkManager.ready_peers.has(1):
-			NetworkManager.ready_peers.append(1)
 	_build_ui()
-	# Báo cáo lên Server thông qua Autoload NetworkManager (Đảm bảo 100% không bị mất gói tin)
-	NetworkManager.server_notify_ready.rpc_id(1)
+	if NetworkManager.is_single_player:
+		NetworkManager.ready_peers = [1, 2, 3, 4]
+		_check_all_ready()
+	else:
+		if multiplayer.is_server():
+			if not NetworkManager.ready_peers.has(1):
+				NetworkManager.ready_peers.append(1)
+		# Báo cáo lên Server thông qua Autoload NetworkManager (Đảm bảo 100% không bị mất gói tin)
+		NetworkManager.server_notify_ready.rpc_id(1)
 
 # ============================================================
 # UI CONSTRUCTION
@@ -168,11 +172,11 @@ func _build_ui():
 	cp_hbox.add_theme_constant_override("separation", 30)
 	cp_vbox.add_child(cp_hbox)
 	
-	challenge_btn_in = _create_btn("IN (Theo mạng)", Color("#2e7d32"))
+	challenge_btn_in = _create_btn("IN (Theo cược)", Color("#2e7d32"))
 	challenge_btn_in.custom_minimum_size = Vector2(200, 45)
 	challenge_btn_in.pressed.connect(func():
 		challenge_panel.hide()
-		server_respond_all_in_challenge.rpc_id(1, "IN")
+		send_challenge_response_to_server("IN")
 	)
 	cp_hbox.add_child(challenge_btn_in)
 	
@@ -180,7 +184,7 @@ func _build_ui():
 	challenge_btn_out.custom_minimum_size = Vector2(200, 45)
 	challenge_btn_out.pressed.connect(func():
 		challenge_panel.hide()
-		server_respond_all_in_challenge.rpc_id(1, "OUT")
+		send_challenge_response_to_server("OUT")
 	)
 	cp_hbox.add_child(challenge_btn_out)
 
@@ -228,9 +232,9 @@ func _build_ui():
 	btn_container.add_theme_constant_override("separation", 8)
 	add_child(btn_container)
 	
-	btn_all_in = _create_btn("ALL IN", Color("#e65100")); btn_all_in.pressed.connect(func(): _send_action.rpc_id(1, "ALL_IN"))
-	btn_call = _create_btn("CALL", Color("#2e7d32")); btn_call.pressed.connect(func(): _send_action.rpc_id(1, "CALL"))
-	btn_fold = _create_btn("FOLD", Color("#c62828")); btn_fold.pressed.connect(func(): _send_action.rpc_id(1, "FOLD"))
+	btn_all_in = _create_btn("ALL IN", Color("#e65100")); btn_all_in.pressed.connect(func(): send_action_to_server("ALL_IN"))
+	btn_call = _create_btn("CALL", Color("#2e7d32")); btn_call.pressed.connect(func(): send_action_to_server("CALL"))
+	btn_fold = _create_btn("FOLD", Color("#c62828")); btn_fold.pressed.connect(func(): send_action_to_server("FOLD"))
 	btn_container.add_child(btn_all_in); btn_container.add_child(btn_call); btn_container.add_child(btn_fold)
 	_disable_buttons()
 	
@@ -635,7 +639,7 @@ func server_handle_player_disconnect(disconnected_id: int):
 		player_panels.erase(disconnected_id)
 		
 	# 3. Đồng bộ lệnh xóa panel sang toàn bộ Client
-	rpc("client_remove_disconnected_player", disconnected_id)
+	send_rpc("client_remove_disconnected_player", [disconnected_id])
 		
 	# 4. Nếu đang ở trạng thái chờ ghép phòng, chỉ cần cập nhật trạng thái sẵn sàng
 	if state == GameState.WAITING:
@@ -769,7 +773,7 @@ func start_server_game(starting_bet: int):
 		# Khấu trừ tiền cược bắt đầu ván
 		if NetworkManager.players.has(pid):
 			NetworkManager.players[pid].money = max(0, NetworkManager.players[pid].money - starting_bet)
-			rpc("client_sync_money", pid, NetworkManager.players[pid].money)
+			send_rpc("client_sync_money", [pid, NetworkManager.players[pid].money])
 	
 	# Deal Hands
 	server_player_hands.clear()
@@ -789,7 +793,7 @@ func start_server_game(starting_bet: int):
 		comm_data.append({"suit": c.suit, "rank": c.rank})
 		
 	# Broadcast Start
-	rpc("client_start_game", hand_data, comm_data, pot_money, turn_order[current_turn_idx])
+	send_rpc("client_start_game", [hand_data, comm_data, pot_money, turn_order[current_turn_idx]])
 
 @rpc("any_peer", "reliable", "call_local")
 func _send_action(action: String):
@@ -806,7 +810,7 @@ func _send_action(action: String):
 		var bet_amount = min(current_round_bet, NetworkManager.players[sender_id].money)
 		NetworkManager.players[sender_id].money -= bet_amount
 		pot_money += bet_amount
-		rpc("client_sync_money", sender_id, NetworkManager.players[sender_id].money)
+		send_rpc("client_sync_money", [sender_id, NetworkManager.players[sender_id].money])
 		
 	elif action == "ALL_IN":
 		is_all_in_challenge = true
@@ -817,13 +821,13 @@ func _send_action(action: String):
 		var bet_amount = NetworkManager.players[sender_id].money
 		NetworkManager.players[sender_id].money = 0
 		pot_money += bet_amount
-		rpc("client_sync_money", sender_id, 0)
-		rpc("client_sync_pot", pot_money, sender_id, action)
+		send_rpc("client_sync_money", [sender_id, 0])
+		send_rpc("client_sync_pot", [pot_money, sender_id, action])
 		
 		all_in_responses[sender_id] = "IN"
 		
 		var challenger_name = NetworkManager.players[sender_id].name if NetworkManager.players.has(sender_id) else "Người chơi"
-		rpc("client_trigger_all_in_challenge", sender_id, challenger_name)
+		send_rpc("client_trigger_all_in_challenge", [sender_id, challenger_name])
 		return
 
 	
@@ -845,14 +849,14 @@ func _server_next_turn():
 		elif state == GameState.FLOP: state = GameState.TURN
 		elif state == GameState.TURN: state = GameState.RIVER
 		elif state == GameState.RIVER: _server_force_showdown(); return
-		rpc("client_advance_phase", state)
+		send_rpc("client_advance_phase", [state])
 		
-	rpc("client_sync_turn", turn_order[current_turn_idx])
+	send_rpc("client_sync_turn", [turn_order[current_turn_idx]])
 
 func _server_force_showdown():
 	state = GameState.SHOWDOWN
-	rpc("client_advance_phase", state)
-	rpc("client_showdown")
+	send_rpc("client_advance_phase", [state])
+	send_rpc("client_showdown")
 	
 	# Phân tích kết quả Poker để tìm người thắng bài mạnh nhất
 	var best_score = -1
@@ -883,7 +887,7 @@ func _server_force_showdown():
 	
 	if best_pid != -1:
 		NetworkManager.players[best_pid].money += pot_money
-		rpc("client_sync_money", best_pid, NetworkManager.players[best_pid].money)
+		send_rpc("client_sync_money", [best_pid, NetworkManager.players[best_pid].money])
 		
 	# Kiểm tra xem có ai hết tiền bị loại không
 	for pid in active_players:
@@ -891,7 +895,7 @@ func _server_force_showdown():
 			eliminated_name = NetworkManager.players[pid].name
 			break
 				
-	rpc("client_announce_result", winner_name, winner_hand, "", won_amount, eliminated_name)
+	send_rpc("client_announce_result", [winner_name, winner_hand, "", won_amount, eliminated_name])
 	
 	await get_tree().create_timer(5.0).timeout
 	
@@ -965,8 +969,10 @@ func client_sync_turn(turn_id: int):
 		info_label.text = "LƯỢT CỦA BẠN!"
 		_enable_buttons()
 	else:
-		info_label.text = "Chờ người khác..."
+		info_label.text = "Chờ " + (NetworkManager.players[turn_id].name if NetworkManager.players.has(turn_id) else "đối thủ") + "..."
 		_disable_buttons()
+		if NetworkManager.is_single_player and multiplayer.is_server():
+			_on_bot_turn(turn_id)
 
 @rpc("authority", "reliable", "call_local")
 func client_sync_pot(pot: int, actor_id: int, action: String):
@@ -1074,6 +1080,11 @@ func client_trigger_all_in_challenge(challenger_id: int, challenger_name: String
 	challenge_lbl.text = challenger_name.to_upper() + " đã cược toàn bộ số tiền!\nHãy chọn tiếp tục sinh tử (IN) hoặc úp bài chấp nhận mất cược (OUT)"
 	challenge_panel.move_to_front()
 	challenge_panel.show()
+	
+	if NetworkManager.is_single_player and multiplayer.is_server():
+		for pid in active_players:
+			if pid != 1 and pid != challenger_id and not active_players[pid].has_folded:
+				_on_bot_all_in_challenge(pid)
 
 @rpc("any_peer", "reliable", "call_local")
 func server_respond_all_in_challenge(response: String):
@@ -1086,7 +1097,7 @@ func server_respond_all_in_challenge(response: String):
 	
 	var responder_name = NetworkManager.players[sender_id].name if NetworkManager.players.has(sender_id) else "Người chơi"
 	var response_text = "ĐÃ THEO (IN)" if response == "IN" else "ĐÃ RÚT LUI (OUT)"
-	rpc("client_log_challenge_response", responder_name, response_text)
+	send_rpc("client_log_challenge_response", [responder_name, response_text])
 	
 	# Kiểm tra xem tất cả người chơi hoạt động đã phản hồi chưa
 	var all_responded = true
@@ -1110,7 +1121,7 @@ func _server_process_all_in_results():
 	for pid in all_in_responses:
 		if all_in_responses[pid] == "OUT":
 			active_players[pid].has_folded = true
-			rpc("client_sync_pot", pot_money, pid, "FOLD")
+			send_rpc("client_sync_pot", [pot_money, pid, "FOLD"])
 			
 	# Áp dụng IN (All-in)
 	for pid in all_in_responses:
@@ -1118,8 +1129,8 @@ func _server_process_all_in_results():
 			var balance = NetworkManager.players[pid].money
 			NetworkManager.players[pid].money = 0
 			pot_money += balance
-			rpc("client_sync_money", pid, 0)
-			rpc("client_sync_pot", pot_money, pid, "ALL_IN")
+			send_rpc("client_sync_money", [pid, 0])
+			send_rpc("client_sync_pot", [pot_money, pid, "ALL_IN"])
 			
 	# Kiểm tra số người chơi còn lại
 	var active_count = 0
@@ -1136,7 +1147,7 @@ func _server_process_all_in_results():
 
 func _server_force_instant_winner(winner_pid: int):
 	state = GameState.SHOWDOWN
-	rpc("client_advance_phase", state)
+	send_rpc("client_advance_phase", [state])
 	
 	var winner_name = "Challenger"
 	var won_amount = pot_money
@@ -1145,14 +1156,14 @@ func _server_force_instant_winner(winner_pid: int):
 	if winner_pid != -1:
 		winner_name = NetworkManager.players[winner_pid].name if NetworkManager.players.has(winner_pid) else "Người chơi"
 		NetworkManager.players[winner_pid].money += pot_money
-		rpc("client_sync_money", winner_pid, NetworkManager.players[winner_pid].money)
+		send_rpc("client_sync_money", [winner_pid, NetworkManager.players[winner_pid].money])
 		
 	for pid in active_players:
 		if NetworkManager.players[pid].money <= 0:
 			eliminated_name = NetworkManager.players[pid].name
 			break
 			
-	rpc("client_announce_result", winner_name, "Mọi đối thủ đã rút lui", "", won_amount, eliminated_name)
+	send_rpc("client_announce_result", [winner_name, "Mọi đối thủ đã rút lui", "", won_amount, eliminated_name])
 	
 	await get_tree().create_timer(5.0).timeout
 	
@@ -1163,3 +1174,172 @@ func _server_force_instant_winner(winner_pid: int):
 		if btn_start_round:
 			btn_start_round.show()
 		info_label.text = "VÁN ĐẤU KẾT THÚC! CHỦ PHÒNG BẤM CHIA BÀI ĐỂ TIẾP TỤC"
+
+# ============================================================
+# SINGLE-PLAYER / BOT AI LOGIC & RPC WRAPPER
+# ============================================================
+func send_rpc(method_name: String, args: Array = []):
+	if NetworkManager.is_single_player:
+		callv(method_name, args)
+	else:
+		match args.size():
+			0: rpc(method_name)
+			1: rpc(method_name, args[0])
+			2: rpc(method_name, args[0], args[1])
+			3: rpc(method_name, args[0], args[1], args[2])
+			4: rpc(method_name, args[0], args[1], args[2], args[3])
+			5: rpc(method_name, args[0], args[1], args[2], args[3], args[4])
+
+func _on_bot_turn(bot_id: int):
+	# Chờ 1.2 - 2.2 giây tạo hiệu ứng suy nghĩ thực tế
+	await get_tree().create_timer(randf_range(1.2, 2.2)).timeout
+	if state == GameState.SHOWDOWN or state == GameState.WAITING: return
+	if turn_order.is_empty() or turn_order[current_turn_idx] != bot_id: return
+	
+	# Đánh giá bài của Bot hiện tại
+	var bot_cards: Array[Card] = []
+	if server_player_hands.has(bot_id):
+		bot_cards.append_array(server_player_hands[bot_id])
+	bot_cards.append_array(community_cards)
+	
+	var action = "CALL" # Mặc định
+	
+	if bot_cards.size() >= 5:
+		var eval = HandEvaluator.evaluate(bot_cards)
+		var rank = int(eval.rank)
+		
+		# Quyết định hành động dựa trên độ mạnh bài
+		if rank >= 3: # Sám Cô, Sảnh, Thùng trở lên -> Rất mạnh!
+			# 85% Call, 15% All-in nếu ở vòng 2 trở đi
+			if state != GameState.PRE_FLOP and randf() < 0.15:
+				action = "ALL_IN"
+			else:
+				action = "CALL"
+		elif rank == 1 or rank == 2: # Đôi, Thú -> Khá
+			# 95% Call, 5% Fold
+			if randf() < 0.05:
+				action = "FOLD"
+			else:
+				action = "CALL"
+		else: # Mậu Thầu -> Bài yếu
+			# Ở Pre-flop: 90% Call, 10% Fold
+			# Ở Flop/Turn: 60% Call, 40% Fold
+			# Ở River: 40% Call, 60% Fold
+			var fold_chance = 0.1
+			if state == GameState.FLOP: fold_chance = 0.35
+			elif state == GameState.TURN: fold_chance = 0.5
+			elif state == GameState.RIVER: fold_chance = 0.65
+			
+			if randf() < fold_chance:
+				action = "FOLD"
+			else:
+				action = "CALL"
+	else:
+		# Vòng 1 (Pre-flop) chưa đủ 5 lá
+		# Dựa vào bài tẩy (2 lá)
+		var c1 = server_player_hands[bot_id][0]
+		var c2 = server_player_hands[bot_id][1]
+		if c1.rank == c2.rank: # Có đôi sẵn trên tay -> Mạnh!
+			action = "CALL"
+		elif int(c1.rank) >= 10 or int(c2.rank) >= 10: # Có lá to
+			action = "CALL"
+		else:
+			# Bài tẩy xấu
+			if randf() < 0.15:
+				action = "FOLD"
+			else:
+				action = "CALL"
+				
+	# Thực hiện hành động bot
+	_process_bot_action(bot_id, action)
+
+func _process_bot_action(bot_id: int, action: String):
+	if state == GameState.SHOWDOWN or state == GameState.WAITING: return
+	if turn_order[current_turn_idx] != bot_id: return
+	
+	if action == "FOLD":
+		active_players[bot_id].has_folded = true
+		send_rpc("client_sync_pot", [pot_money, bot_id, "FOLD"])
+	elif action == "CALL":
+		var bet_amount = min(current_round_bet, NetworkManager.players[bot_id].money)
+		NetworkManager.players[bot_id].money -= bet_amount
+		pot_money += bet_amount
+		send_rpc("client_sync_money", [bot_id, NetworkManager.players[bot_id].money])
+		send_rpc("client_sync_pot", [pot_money, bot_id, "CALL"])
+	elif action == "ALL_IN":
+		is_all_in_challenge = true
+		all_in_challenger_id = bot_id
+		all_in_responses.clear()
+		
+		# Bot cược toàn bộ tiền và chọn IN
+		var bet_amount = NetworkManager.players[bot_id].money
+		NetworkManager.players[bot_id].money = 0
+		pot_money += bet_amount
+		send_rpc("client_sync_money", [bot_id, 0])
+		send_rpc("client_sync_pot", [pot_money, bot_id, "ALL_IN"])
+		
+		all_in_responses[bot_id] = "IN"
+		
+		var bot_name = NetworkManager.players[bot_id].name
+		send_rpc("client_trigger_all_in_challenge", [bot_id, bot_name])
+		return
+		
+	# Tiếp tục lượt
+	_server_next_turn()
+
+func _on_bot_all_in_challenge(bot_id: int):
+	# Chờ 1.0 - 2.0 giây suy nghĩ
+	await get_tree().create_timer(randf_range(1.0, 2.0)).timeout
+	if not is_all_in_challenge: return
+	
+	# Đánh giá bài xem có dám cược mạng không
+	var bot_cards: Array[Card] = []
+	if server_player_hands.has(bot_id):
+		bot_cards.append_array(server_player_hands[bot_id])
+	bot_cards.append_array(community_cards)
+	
+	var response = "OUT" # Mặc định rút lui
+	
+	if bot_cards.size() >= 5:
+		var eval = HandEvaluator.evaluate(bot_cards)
+		var rank = int(eval.rank)
+		# Nếu có Đôi hoặc Thú trở lên thì 70% chọn IN, nếu Sám cô trở lên thì 95% chọn IN!
+		if rank >= 3:
+			response = "IN" if randf() < 0.95 else "OUT"
+		elif rank == 1 or rank == 2:
+			response = "IN" if randf() < 0.65 else "OUT"
+		else:
+			# Mậu thầu thì chỉ 15% chọn IN để bluff/liều lĩnh
+			response = "IN" if randf() < 0.15 else "OUT"
+	else:
+		# Vòng 1 (Pre-flop - thực ra All-In đã bị khóa ở vòng 1 nên trường hợp này hiếm xảy ra)
+		response = "IN" if randf() < 0.3 else "OUT"
+		
+	# Ghi nhận phản hồi bot
+	all_in_responses[bot_id] = response
+	var bot_name = NetworkManager.players[bot_id].name
+	var resp_text = "ĐÃ THEO (IN)" if response == "IN" else "ĐÃ RÚT LUI (OUT)"
+	send_rpc("client_log_challenge_response", [bot_name, resp_text])
+	
+	# Kiểm tra xem toàn bộ bot đã phản hồi chưa
+	var all_responded = true
+	for pid in active_players:
+		if active_players[pid].has_folded: continue
+		if not all_in_responses.has(pid):
+			all_responded = false
+			break
+			
+	if all_responded:
+		_server_process_all_in_results()
+
+func send_action_to_server(action: String):
+	if NetworkManager.is_single_player:
+		_send_action(action)
+	else:
+		_send_action.rpc_id(1, action)
+
+func send_challenge_response_to_server(response: String):
+	if NetworkManager.is_single_player:
+		server_respond_all_in_challenge(response)
+	else:
+		server_respond_all_in_challenge.rpc_id(1, response)

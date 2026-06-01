@@ -8,6 +8,7 @@ const MAX_PLAYERS = 4
 var players = {} # { peer_id: { "name": String, "money": 1000 } }
 var my_name = ""
 var ready_peers = [] # Danh sách các peer đã sẵn sàng trong Table scene
+var is_single_player: bool = false
 
 func host_game(player_name: String):
 	if OS.has_feature("web"):

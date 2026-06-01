@@ -137,6 +137,11 @@ func _ready():
 	btn_join.pressed.connect(_on_join)
 	hbox.add_child(btn_join)
 	
+	var btn_single = _create_premium_btn("🤖 CHƠI ĐƠN (VS BOTS)", Color("#ff8f00"), Color("#e65100"))
+	btn_single.custom_minimum_size.y = 52
+	btn_single.pressed.connect(_on_single_player)
+	center_container.add_child(btn_single)
+	
 	# Hướng dẫn kết nối
 	var help_label = Label.new()
 	help_label.text = "💡 Cùng WiFi: nhập IP  |  Khác mạng: dùng ngrok/playit"
@@ -356,6 +361,7 @@ func _get_name():
 # HOST / JOIN
 # ============================================================
 func _on_host():
+	NetworkManager.is_single_player = false
 	if NetworkManager.host_game(_get_name()):
 		_show_lobby()
 		start_btn.show()
@@ -373,6 +379,7 @@ func _on_host():
 		ip_display_label.text = "IP (LAN): " + local_ip + ":" + str(NetworkManager.PORT) + "\nKhác mạng: Chạy ngrok tcp 8080 rồi gửi link cho bạn bè"
 
 func _on_join():
+	NetworkManager.is_single_player = false
 	var ip = ip_input.text.strip_edges()
 	if ip == "": ip = "127.0.0.1"
 	if NetworkManager.join_game(ip, _get_name()):
@@ -380,6 +387,18 @@ func _on_join():
 		lobby_title_label.text = "ĐANG KẾT NỐI..."
 		ip_display_label.text = "Kết nối đến: " + ip
 		status_label.text = "Đang chờ phản hồi từ máy chủ..."
+
+func _on_single_player():
+	var name_input = _get_name()
+	NetworkManager.is_single_player = true
+	NetworkManager.my_name = name_input
+	NetworkManager.players = {
+		1: { "name": name_input, "money": 1000 },
+		2: { "name": "Máy A (Bot Đỏ)", "money": 1000 },
+		3: { "name": "Máy B (Bot Xanh)", "money": 1000 },
+		4: { "name": "Máy C (Bot Vàng)", "money": 1000 }
+	}
+	get_tree().change_scene_to_file("res://scenes/main/Table.tscn")
 
 func _show_lobby():
 	# Ẩn menu chính
