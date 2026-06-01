@@ -7,6 +7,7 @@ const MAX_PLAYERS = 4
 
 var players = {} # { peer_id: { "name": String, "total_bullets": 0 } }
 var my_name = ""
+var ready_peers = [] # Danh sách các peer đã sẵn sàng trong Table scene
 
 func host_game(player_name: String):
 	if OS.has_feature("web"):
@@ -82,4 +83,18 @@ func sync_players(p_list: Dictionary):
 	
 @rpc("authority", "reliable", "call_local")
 func start_game():
+	ready_peers.clear() # Reset danh sách sẵn sàng trước khi vào bàn chơi
 	get_tree().change_scene_to_file("res://scenes/main/Table.tscn")
+
+@rpc("any_peer", "reliable")
+func server_notify_ready():
+	if not multiplayer.is_server(): return
+	var sender_id = multiplayer.get_remote_sender_id()
+	if sender_id == 0: sender_id = 1
+	if not ready_peers.has(sender_id):
+		ready_peers.append(sender_id)
+	
+	# Gọi cập nhật UI ở Table nếu scene Table đã sẵn sàng trên Server
+	var table = get_tree().root.get_node_or_null("Table")
+	if table and table.has_method("_check_all_ready"):
+		table._check_all_ready()
