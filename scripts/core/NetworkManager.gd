@@ -14,6 +14,8 @@ var is_single_player: bool = false
 # Tải số tiền của người chơi từ file cấu hình cục bộ, mặc định 1000 nếu chưa có
 func load_player_money(p_name: String) -> int:
 	var config = ConfigFile.new()
+	if not FileAccess.file_exists(SAVE_PATH):
+		return 1000
 	var err = config.load(SAVE_PATH)
 	if err == OK:
 		return config.get_value("bank", p_name, 1000)
@@ -22,7 +24,8 @@ func load_player_money(p_name: String) -> int:
 # Lưu số tiền của người chơi vào file cấu hình cục bộ
 func save_player_money(p_name: String, amount: int):
 	var config = ConfigFile.new()
-	config.load(SAVE_PATH)
+	if FileAccess.file_exists(SAVE_PATH):
+		config.load(SAVE_PATH)
 	config.set_value("bank", p_name, amount)
 	var err = config.save(SAVE_PATH)
 	if err != OK:
