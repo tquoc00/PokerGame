@@ -116,7 +116,7 @@ func _build_ui():
 	add_child(pot_area)
 	
 	pot_title = Label.new()
-	pot_title.text = "💰 HŨ TIỀN"
+	pot_title.text = "HŨ TIỀN"
 	pot_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	pot_title.add_theme_font_size_override("font_size", 18)
 	pot_title.add_theme_color_override("font_color", Color("#ffd54f"))
@@ -157,38 +157,63 @@ func _build_ui():
 	_disable_buttons()
 	
 	if multiplayer.is_server():
-		# HBoxContainer cho các điều khiển cược của Host
-		var host_settings = HBoxContainer.new()
-		host_settings.position = Vector2(440, 350)
-		host_settings.size = Vector2(400, 60)
-		host_settings.alignment = BoxContainer.ALIGNMENT_CENTER
-		host_settings.add_theme_constant_override("separation", 15)
-		host_settings.name = "HostSettings"
-		add_child(host_settings)
+		# Panel điều khiển cược của Host ở góc dưới bên trái
+		var host_panel = PanelContainer.new()
+		var h_style = StyleBoxFlat.new()
+		h_style.bg_color = Color(0.06, 0.09, 0.13, 0.85) # Glassmorphic dark
+		h_style.set_border_width_all(2)
+		h_style.border_color = Color("#1565c0") # Host blue theme accent
+		h_style.set_corner_radius_all(12)
+		h_style.content_margin_left = 12
+		h_style.content_margin_right = 12
+		h_style.content_margin_top = 8
+		h_style.content_margin_bottom = 8
+		host_panel.add_theme_stylebox_override("panel", h_style)
+		host_panel.position = Vector2(30, 480)
+		host_panel.size = Vector2(220, 130)
+		host_panel.name = "HostSettings"
+		add_child(host_panel)
+		
+		var vbox = VBoxContainer.new()
+		vbox.add_theme_constant_override("separation", 6)
+		host_panel.add_child(vbox)
+		
+		var title_lbl = Label.new()
+		title_lbl.text = "BÀN PHÍM CHỦ PHÒNG"
+		title_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		title_lbl.add_theme_font_size_override("font_size", 14)
+		title_lbl.add_theme_color_override("font_color", Color("#90caf9"))
+		vbox.add_child(title_lbl)
+		
+		var hbox = HBoxContainer.new()
+		hbox.alignment = BoxContainer.ALIGNMENT_CENTER
+		hbox.add_theme_constant_override("separation", 8)
+		vbox.add_child(hbox)
 		
 		var bet_lbl = Label.new()
-		bet_lbl.text = "Tiền cược:"
-		bet_lbl.add_theme_font_size_override("font_size", 18)
-		host_settings.add_child(bet_lbl)
+		bet_lbl.text = "Cược:"
+		bet_lbl.add_theme_font_size_override("font_size", 16)
+		hbox.add_child(bet_lbl)
 		
 		var bet_input = LineEdit.new()
 		bet_input.text = "100"
 		bet_input.name = "BetInput"
-		bet_input.custom_minimum_size = Vector2(80, 40)
+		bet_input.custom_minimum_size = Vector2(90, 30)
 		bet_input.alignment = HORIZONTAL_ALIGNMENT_CENTER
-		bet_input.add_theme_font_size_override("font_size", 18)
+		bet_input.add_theme_font_size_override("font_size", 14)
 		
 		var le_style = StyleBoxFlat.new()
-		le_style.bg_color = Color(1, 1, 1, 0.1)
-		le_style.set_corner_radius_all(6)
+		le_style.bg_color = Color(1, 1, 1, 0.08)
+		le_style.set_corner_radius_all(4)
 		bet_input.add_theme_stylebox_override("normal", le_style)
-		host_settings.add_child(bet_input)
+		hbox.add_child(bet_input)
 		
 		btn_start_round = _create_btn("▶ CHIA BÀI", Color("#1565c0"))
-		btn_start_round.custom_minimum_size = Vector2(150, 45)
+		btn_start_round.custom_minimum_size = Vector2(190, 35)
+		btn_start_round.add_theme_font_size_override("font_size", 14)
 		btn_start_round.pressed.connect(_on_host_start_round)
 		btn_start_round.disabled = true # Mặc định khóa lại
-		host_settings.add_child(btn_start_round)
+		vbox.add_child(btn_start_round)
 		
 		info_label.text = "ĐANG CHỜ NGƯỜI CHƠI KHÁC TẢI XONG..."
 		_check_all_ready()
@@ -297,7 +322,7 @@ func _create_player_ui(peer_id: int, p_name: String, pos: Vector2, accent: Color
 	
 	var total_m = 1000
 	if NetworkManager.players.has(peer_id): total_m = NetworkManager.players[peer_id].money
-	_draw_money(hbox, total_m, "💰 ")
+	_draw_money(hbox, total_m, "$ ")
 
 func _create_btn(text: String, color: Color) -> Button:
 	var btn = Button.new(); btn.text = text; btn.custom_minimum_size = Vector2(180, 45)
@@ -578,7 +603,7 @@ func client_sync_pot(pot: int, actor_id: int, action: String):
 @rpc("authority", "reliable", "call_local")
 func client_sync_money(pid: int, total: int):
 	NetworkManager.players[pid].money = total
-	_draw_money(player_panels[pid].bullet_box, total, "💰 ")
+	_draw_money(player_panels[pid].bullet_box, total, "$ ")
 
 @rpc("authority", "reliable", "call_local")
 func client_advance_phase(new_state: int):
@@ -607,19 +632,21 @@ func client_showdown():
 func client_announce_result(w_name: String, w_hand: String, l_name: String, added_b: int, elim_name: String):
 	var lines = []
 	if w_name != "":
-		lines.append("🏆 " + w_name + " THẮNG với " + w_hand + "!")
-		lines.append("💰 Nhận trọn hũ tiền: " + str(added_b) + " $!")
+		lines.append("★ WINNER: " + w_name + " ★")
+		lines.append("-> Bai manh nhat: " + w_hand)
+		lines.append("-> Nhan tron hu tien: " + str(added_b) + " $")
 	if elim_name != "":
 		lines.append("")
-		lines.append("💀 " + elim_name + " ĐÃ BỊ LOẠI VÌ HẾT TIỀN!")
+		lines.append("❌ NGUOI CHOI DA BI LOAI: " + elim_name + " (Het tien!)")
 	
-	info_label.text = "VÁN ĐẤU KẾT THÚC!"
+	info_label.text = "VAN DAU KET THUC!"
 	_show_result_overlay("\n".join(lines))
 	
 	if elim_name != "":
 		_play_elimination_effect()
 
 func _show_result_overlay(msg: String):
+	result_overlay.move_to_front()
 	result_label.text = msg
 	result_overlay.modulate.a = 0.0
 	result_overlay.scale = Vector2(0.8, 0.8)

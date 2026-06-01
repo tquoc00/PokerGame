@@ -369,15 +369,15 @@ func _on_host():
 				break
 		if local_ip == "": local_ip = "127.0.0.1"
 		
-		lobby_title_label.text = "🏠 PHÒNG CỦA BẠN"
-		ip_display_label.text = "📡 IP (LAN): " + local_ip + ":" + str(NetworkManager.PORT) + "\n💡 Khác mạng: Chạy ngrok tcp 8080 rồi gửi link cho bạn bè"
+		lobby_title_label.text = "PHÒNG CỦA BẠN"
+		ip_display_label.text = "IP (LAN): " + local_ip + ":" + str(NetworkManager.PORT) + "\nKhác mạng: Chạy ngrok tcp 8080 rồi gửi link cho bạn bè"
 
 func _on_join():
 	var ip = ip_input.text.strip_edges()
 	if ip == "": ip = "127.0.0.1"
 	if NetworkManager.join_game(ip, _get_name()):
 		_show_lobby()
-		lobby_title_label.text = "🎮 ĐANG KẾT NỐI..."
+		lobby_title_label.text = "ĐANG KẾT NỐI..."
 		ip_display_label.text = "Kết nối đến: " + ip
 		status_label.text = "Đang chờ phản hồi từ máy chủ..."
 
@@ -422,9 +422,9 @@ func _update_lobby():
 	status_label.add_theme_color_override("font_color", Color(1, 1, 1, 0.5))
 	
 	if multiplayer.is_server():
-		lobby_title_label.text = "🏠 PHÒNG CỦA BẠN"
+		lobby_title_label.text = "PHÒNG CỦA BẠN"
 	else:
-		lobby_title_label.text = "🎮 PHÒNG CHỜ"
+		lobby_title_label.text = "PHÒNG CHỜ"
 		
 	for id in NetworkManager.players:
 		var p_name = NetworkManager.players[id].name
@@ -454,8 +454,9 @@ func _create_player_card(p_name: String, is_host: bool) -> PanelContainer:
 	card.add_child(hbox)
 	
 	var icon = Label.new()
-	icon.text = "👑" if is_host else "👤"
+	icon.text = "★" if is_host else "●"
 	icon.add_theme_font_size_override("font_size", 22)
+	icon.add_theme_color_override("font_color", Color("#ffd54f") if is_host else Color("#90caf9"))
 	hbox.add_child(icon)
 	
 	var name_lbl = Label.new()
