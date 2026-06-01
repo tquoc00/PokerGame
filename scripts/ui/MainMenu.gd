@@ -185,6 +185,20 @@ func _show_lobby():
 	var subtitle = get_node_or_null("Subtitle")
 	if subtitle: subtitle.hide()
 	
+	var lbl = lobby_panel.get_child(0).get_child(0) as Label
+	lbl.add_theme_color_override("font_color", Color.WHITE)
+	if multiplayer.is_server():
+		var ips = IP.get_local_addresses()
+		var local_ip = ""
+		for ip in ips:
+			if ip.begins_with("192.168.") or ip.begins_with("10.") or (ip.begins_with("172.") and int(ip.split(".")[1]) >= 16 and int(ip.split(".")[1]) <= 31):
+				local_ip = ip
+				break
+		if local_ip == "": local_ip = "127.0.0.1"
+		lbl.text = "PHÒNG ĐÃ TẠO!\nIP CỦA BẠN LÀ: " + local_ip + "\n(Gửi IP này cho bạn bè cùng mạng LAN)"
+	else:
+		lbl.text = "ĐANG CHỜ MÁY CHỦ BẮT ĐẦU..."
+	
 	lobby_panel.show()
 	_update_lobby()
 
