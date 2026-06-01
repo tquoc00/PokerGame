@@ -112,6 +112,11 @@ func _ready():
 	start_btn.hide()
 	lobby_vbox.add_child(start_btn)
 	
+	var btn_leave = _create_fancy_btn("THOÁT PHÒNG", Color("#c62828"))
+	btn_leave.custom_minimum_size = Vector2(320, 55)
+	btn_leave.pressed.connect(_on_leave_lobby)
+	lobby_vbox.add_child(btn_leave)
+	
 	NetworkManager.player_list_changed.connect(_update_lobby)
 	multiplayer.connection_failed.connect(_on_connection_error)
 	multiplayer.server_disconnected.connect(_on_server_died)
@@ -173,6 +178,14 @@ func _show_lobby():
 	
 	lobby_panel.show()
 	_update_lobby()
+
+func _on_leave_lobby():
+	NetworkManager.leave_game()
+	var title = get_node_or_null("Title")
+	if title: title.show()
+	var subtitle = get_node_or_null("Subtitle")
+	if subtitle: subtitle.show()
+	lobby_panel.hide()
 
 func _update_lobby():
 	for c in players_vbox.get_children():

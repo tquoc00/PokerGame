@@ -129,6 +129,13 @@ func _build_ui():
 		add_child(btn_start_round)
 		info_label.text = "ĐANG CHỜ NGƯỜI CHƠI KHÁC TẢI XONG..."
 		_check_all_ready()
+		
+	# Nút Thoát Game (Có mặt ở mọi lúc để quay lại Menu chính)
+	var btn_exit = _create_btn("✕ THOÁT", Color("#c62828"))
+	btn_exit.position = Vector2(20, 20)
+	btn_exit.size = Vector2(120, 45)
+	btn_exit.pressed.connect(func(): NetworkManager.leave_game())
+	add_child(btn_exit)
 
 func _on_host_start_round():
 	btn_start_round.hide()
@@ -144,6 +151,43 @@ func _check_all_ready():
 	if all_ready and btn_start_round:
 		btn_start_round.disabled = false
 		info_label.text = "MỌI NGƯỜI ĐÃ SẴN SÀNG! BẤM CHIA BÀI ĐỂ BẮT ĐẦU"
+
+func server_handle_player_disconnect(disconnected_id: int):
+	if not multiplayer.is_server(): return
+	
+	# 1. Xóa khỏi danh sách sẵn sàng (nếu có)
+	if NetworkManager.ready_peers.has(disconnected_id):
+		NetworkManager.ready_peers.erase(disconnected_id)
+		
+	# 2. Xóa Panel UI của người đó trên Server
+	if player_panels.has(disconnected_id):
+		player_panels[disconnected_id].panel.queue_free()
+		player_panels.erase(disconnected_id)
+		
+	# 3. Đồng bộ lệnh xóa panel sang toàn bộ Client
+	rpc("client_remove_disconnected_player", disconnected_id)
+		
+	# 4. Nếu đang ở trạng thái chờ ghép phòng, chỉ cần cập nhật trạng thái sẵn sàng
+	if state == GameState.WAITING:
+		_check_all_ready()
+		return
+		
+	# 5. Nếu đang chơi giữa trận: Cho người này Fold bài
+	if active_players.has(disconnected_id):
+		active_players[disconnected_id].has_folded = true
+		
+	# 6. Nếu đến lượt người chơi này, tự động chuyển lượt sang người kế tiếp
+	if turn_order.size() > current_turn_idx and turn_order[current_turn_idx] == disconnected_id:
+		_server_next_turn()
+	else:
+		# Kiểm tra xem ván đấu có kết thúc sớm vì những người khác đã fold không
+		_server_check_round_end()
+
+@rpc("authority", "reliable")
+func client_remove_disconnected_player(disconnected_id: int):
+	if player_panels.has(disconnected_id):
+		player_panels[disconnected_id].panel.queue_free()
+		player_panels.erase(disconnected_id)
 
 func _create_player_ui(peer_id: int, p_name: String, pos: Vector2, accent: Color):
 	var panel = PanelContainer.new()

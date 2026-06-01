@@ -26,6 +26,13 @@ func host_game(player_name: String):
 	player_list_changed.emit()
 	return true
 
+func leave_game():
+	multiplayer.multiplayer_peer = null
+	players.clear()
+	ready_peers.clear()
+	player_list_changed.emit()
+	get_tree().change_scene_to_file("res://scenes/main/Menu.tscn")
+
 func join_game(ip: String, player_name: String):
 	my_name = player_name
 	var peer = WebSocketMultiplayerPeer.new()
@@ -56,6 +63,11 @@ func _on_peer_disconnected(id: int):
 	if multiplayer.is_server():
 		players.erase(id)
 		rpc("sync_players", players)
+		
+		# Thông báo PokerGameManager xử lý rớt mạng nếu game đang chạy
+		var table = get_tree().root.get_node_or_null("Table")
+		if table and table.has_method("server_handle_player_disconnect"):
+			table.server_handle_player_disconnect(id)
 
 func _on_connected_to_server():
 	print("Connected to server!")
@@ -73,8 +85,20 @@ func _on_server_disconnected():
 @rpc("any_peer", "reliable")
 func register_player(id: int, p_name: String):
 	if multiplayer.is_server():
+		if players.size() >= MAX_PLAYERS:
+			rpc_id(id, "client_reject_join", "PHÒNG ĐÃ ĐẦY! (TỐI ĐA 4 NGƯỜI)")
+			return
 		players[id] = { "name": p_name, "total_bullets": 0 }
 		rpc("sync_players", players)
+
+@rpc("authority", "reliable")
+func client_reject_join(reason: String):
+	multiplayer.multiplayer_peer = null
+	var menu = get_tree().root.get_node_or_null("Menu")
+	if menu and menu.has_method("_on_connection_error"):
+		var lbl = menu.lobby_panel.get_child(0) as Label
+		lbl.text = reason
+		lbl.add_theme_color_override("font_color", Color.RED)
 
 @rpc("authority", "reliable", "call_local")
 func sync_players(p_list: Dictionary):
