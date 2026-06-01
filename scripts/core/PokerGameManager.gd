@@ -379,11 +379,11 @@ func _build_ui():
 			"desc": "Sảnh đồng chất cao (10-J-Q-K-A)",
 			"color": "#ffb300",
 			"cards": [
-				{"r": "A", "s": "♠", "c": "#263238"},
-				{"r": "K", "s": "♠", "c": "#263238"},
-				{"r": "Q", "s": "♠", "c": "#263238"},
-				{"r": "J", "s": "♠", "c": "#263238"},
-				{"r": "10", "s": "♠", "c": "#263238"}
+				{"r": "A", "s": "Bích", "c": "#263238"},
+				{"r": "K", "s": "Bích", "c": "#263238"},
+				{"r": "Q", "s": "Bích", "c": "#263238"},
+				{"r": "J", "s": "Bích", "c": "#263238"},
+				{"r": "10", "s": "Bích", "c": "#263238"}
 			]
 		},
 		{
@@ -391,11 +391,11 @@ func _build_ui():
 			"desc": "Sảnh đồng chất bất kỳ (vd: 5-6-7-8-9)",
 			"color": "#ff8f00",
 			"cards": [
-				{"r": "9", "s": "♥", "c": "#e53935"},
-				{"r": "8", "s": "♥", "c": "#e53935"},
-				{"r": "7", "s": "♥", "c": "#e53935"},
-				{"r": "6", "s": "♥", "c": "#e53935"},
-				{"r": "5", "s": "♥", "c": "#e53935"}
+				{"r": "9", "s": "Cơ", "c": "#e53935"},
+				{"r": "8", "s": "Cơ", "c": "#e53935"},
+				{"r": "7", "s": "Cơ", "c": "#e53935"},
+				{"r": "6", "s": "Cơ", "c": "#e53935"},
+				{"r": "5", "s": "Cơ", "c": "#e53935"}
 			]
 		},
 		{
@@ -403,11 +403,11 @@ func _build_ui():
 			"desc": "Tứ Quý (4 lá cùng bậc, vd: 4 lá 9)",
 			"color": "#29b6f6",
 			"cards": [
-				{"r": "K", "s": "♠", "c": "#263238"},
-				{"r": "K", "s": "♥", "c": "#e53935"},
-				{"r": "K", "s": "♦", "c": "#e53935"},
-				{"r": "K", "s": "♣", "c": "#263238"},
-				{"r": "3", "s": "♠", "c": "#263238"}
+				{"r": "K", "s": "Bích", "c": "#263238"},
+				{"r": "K", "s": "Cơ", "c": "#e53935"},
+				{"r": "K", "s": "Rô", "c": "#e53935"},
+				{"r": "K", "s": "Tép", "c": "#263238"},
+				{"r": "3", "s": "Bích", "c": "#263238"}
 			]
 		},
 		{
@@ -415,11 +415,11 @@ func _build_ui():
 			"desc": "Cù Lũ (1 bộ ba + 1 bộ đôi)",
 			"color": "#66bb6a",
 			"cards": [
-				{"r": "10", "s": "♠", "c": "#263238"},
-				{"r": "10", "s": "♥", "c": "#e53935"},
-				{"r": "10", "s": "♦", "c": "#e53935"},
-				{"r": "7", "s": "♣", "c": "#263238"},
-				{"r": "7", "s": "♠", "c": "#263238"}
+				{"r": "10", "s": "Bích", "c": "#263238"},
+				{"r": "10", "s": "Cơ", "c": "#e53935"},
+				{"r": "10", "s": "Rô", "c": "#e53935"},
+				{"r": "7", "s": "Tép", "c": "#263238"},
+				{"r": "7", "s": "Bích", "c": "#263238"}
 			]
 		},
 		{
@@ -427,11 +427,11 @@ func _build_ui():
 			"desc": "Thùng (5 lá cùng chất, không liên tiếp)",
 			"color": "#ab47bc",
 			"cards": [
-				{"r": "A", "s": "♦", "c": "#e53935"},
-				{"r": "J", "s": "♦", "c": "#e53935"},
-				{"r": "8", "s": "♦", "c": "#e53935"},
-				{"r": "6", "s": "♦", "c": "#e53935"},
-				{"r": "2", "s": "♦", "c": "#e53935"}
+				{"r": "A", "s": "Rô", "c": "#e53935"},
+				{"r": "J", "s": "Rô", "c": "#e53935"},
+				{"r": "8", "s": "Rô", "c": "#e53935"},
+				{"r": "6", "s": "Rô", "c": "#e53935"},
+				{"r": "2", "s": "Rô", "c": "#e53935"}
 			]
 		},
 		{
@@ -439,11 +439,11 @@ func _build_ui():
 			"desc": "Sảnh (5 lá liên tiếp, khác chất)",
 			"color": "#26a69a",
 			"cards": [
-				{"r": "8", "s": "♠", "c": "#263238"},
-				{"r": "7", "s": "♥", "c": "#e53935"},
-				{"r": "6", "s": "♦", "c": "#e53935"},
-				{"r": "5", "s": "♣", "c": "#263238"},
-				{"r": "4", "s": "♠", "c": "#263238"}
+				{"r": "8", "s": "Bích", "c": "#263238"},
+				{"r": "7", "s": "Cơ", "c": "#e53935"},
+				{"r": "6", "s": "Rô", "c": "#e53935"},
+				{"r": "5", "s": "Tép", "c": "#263238"},
+				{"r": "4", "s": "Bích", "c": "#263238"}
 			]
 		},
 		{
@@ -451,11 +451,11 @@ func _build_ui():
 			"desc": "Sám Cô (3 lá cùng bậc, vd: 3 lá K)",
 			"color": "#d4e157",
 			"cards": [
-				{"r": "Q", "s": "♠", "c": "#263238"},
-				{"r": "Q", "s": "♥", "c": "#e53935"},
-				{"r": "Q", "s": "♦", "c": "#e53935"},
-				{"r": "A", "s": "♣", "c": "#263238"},
-				{"r": "4", "s": "♠", "c": "#263238"}
+				{"r": "Q", "s": "Bích", "c": "#263238"},
+				{"r": "Q", "s": "Cơ", "c": "#e53935"},
+				{"r": "Q", "s": "Rô", "c": "#e53935"},
+				{"r": "A", "s": "Tép", "c": "#263238"},
+				{"r": "4", "s": "Bích", "c": "#263238"}
 			]
 		},
 		{
@@ -463,11 +463,11 @@ func _build_ui():
 			"desc": "Thú (2 cặp đôi khác nhau)",
 			"color": "#ff7043",
 			"cards": [
-				{"r": "J", "s": "♠", "c": "#263238"},
-				{"r": "J", "s": "♥", "c": "#e53935"},
-				{"r": "5", "s": "♦", "c": "#e53935"},
-				{"r": "5", "s": "♣", "c": "#263238"},
-				{"r": "K", "s": "♠", "c": "#263238"}
+				{"r": "J", "s": "Bích", "c": "#263238"},
+				{"r": "J", "s": "Cơ", "c": "#e53935"},
+				{"r": "5", "s": "Rô", "c": "#e53935"},
+				{"r": "5", "s": "Tép", "c": "#263238"},
+				{"r": "K", "s": "Bích", "c": "#263238"}
 			]
 		},
 		{
@@ -475,11 +475,11 @@ func _build_ui():
 			"desc": "Một Đôi (2 lá cùng bậc, vd: Đôi A)",
 			"color": "#e0e0e0",
 			"cards": [
-				{"r": "A", "s": "♠", "c": "#263238"},
-				{"r": "A", "s": "♥", "c": "#e53935"},
-				{"r": "K", "s": "♦", "c": "#e53935"},
-				{"r": "9", "s": "♣", "c": "#263238"},
-				{"r": "2", "s": "♠", "c": "#263238"}
+				{"r": "A", "s": "Bích", "c": "#263238"},
+				{"r": "A", "s": "Cơ", "c": "#e53935"},
+				{"r": "K", "s": "Rô", "c": "#e53935"},
+				{"r": "9", "s": "Tép", "c": "#263238"},
+				{"r": "2", "s": "Bích", "c": "#263238"}
 			]
 		},
 		{
@@ -487,11 +487,11 @@ func _build_ui():
 			"desc": "Mậu Thầu (Lá bài cao nhất trong bộ)",
 			"color": "#9e9e9e",
 			"cards": [
-				{"r": "A", "s": "♠", "c": "#263238"},
-				{"r": "Q", "s": "♥", "c": "#e53935"},
-				{"r": "9", "s": "♦", "c": "#e53935"},
-				{"r": "6", "s": "♣", "c": "#263238"},
-				{"r": "3", "s": "♠", "c": "#263238"}
+				{"r": "A", "s": "Bích", "c": "#263238"},
+				{"r": "Q", "s": "Cơ", "c": "#e53935"},
+				{"r": "9", "s": "Rô", "c": "#e53935"},
+				{"r": "6", "s": "Tép", "c": "#263238"},
+				{"r": "3", "s": "Bích", "c": "#263238"}
 			]
 		}
 	]
@@ -520,17 +520,17 @@ func _build_ui():
 		
 		for c_info in h.cards:
 			var mini_card = PanelContainer.new()
-			mini_card.custom_minimum_size = Vector2(30, 42)
+			mini_card.custom_minimum_size = Vector2(36, 44)
 			
 			var m_style = StyleBoxFlat.new()
 			m_style.bg_color = Color.WHITE
 			m_style.set_corner_radius_all(4)
 			m_style.set_border_width_all(1)
 			m_style.border_color = Color("#b0bec5")
-			m_style.content_margin_left = 2
-			m_style.content_margin_right = 2
-			m_style.content_margin_top = 2
-			m_style.content_margin_bottom = 2
+			m_style.content_margin_left = 1
+			m_style.content_margin_right = 1
+			m_style.content_margin_top = 1
+			m_style.content_margin_bottom = 1
 			mini_card.add_theme_stylebox_override("panel", m_style)
 			cards_hbox.add_child(mini_card)
 			
@@ -549,7 +549,7 @@ func _build_ui():
 			var s_lbl = Label.new()
 			s_lbl.text = c_info.s
 			s_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-			s_lbl.add_theme_font_size_override("font_size", 12)
+			s_lbl.add_theme_font_size_override("font_size", 10)
 			s_lbl.add_theme_color_override("font_color", Color(c_info.c))
 			card_vbox.add_child(s_lbl)
 	
@@ -908,6 +908,7 @@ func _server_force_showdown():
 # ============================================================
 @rpc("authority", "reliable", "call_local")
 func client_start_game(hand_data: Dictionary, comm_data: Array, pot: int, first_turn_id: int):
+	state = GameState.PRE_FLOP
 	pot_money = pot
 	_draw_money(pot_bullet_container, pot_money, "")
 	result_overlay.hide()
@@ -1051,7 +1052,7 @@ func _enable_buttons():
 	btn_call.disabled = false
 	btn_fold.disabled = false
 	# All-in chỉ được phép dùng từ vòng 2 (FLOP trở đi)
-	btn_all_in.disabled = (state == GameState.PRE_FLOP)
+	btn_all_in.disabled = (state == GameState.PRE_FLOP or state == GameState.WAITING)
 
 @rpc("authority", "reliable", "call_local")
 func client_trigger_all_in_challenge(challenger_id: int, challenger_name: String):
