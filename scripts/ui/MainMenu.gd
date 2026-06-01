@@ -17,147 +17,195 @@ var status_label: Label
 # MENU KHỞI TẠO
 # ============================================================
 func _ready():
-	# Xóa UI cũ (giữ lại background nếu có)
 	for c in get_children():
 		c.queue_free()
 	
-	# === BACKGROUND GRADIENT PREMIUM ===
+	# === BACKGROUND ===
 	var bg = ColorRect.new()
-	bg.color = Color("#0a0e17")
+	bg.color = Color("#080c14")
 	bg.set_anchors_preset(Control.PRESET_FULL_RECT)
 	add_child(bg)
 	
-	# === Animated particle-like decorations ===
+	# === Vignette overlay ===
 	_create_ambient_particles()
 	
-	# === TITLE ===
+	# === MAIN CARD PANEL (trung tâm, phong cách bảng gỗ casino) ===
+	var card_panel = Panel.new()
+	var cp_style = StyleBoxFlat.new()
+	cp_style.bg_color = Color(0.08, 0.11, 0.20, 0.97)
+	cp_style.set_border_width_all(3)
+	cp_style.border_color = Color("#c0965c")
+	cp_style.set_corner_radius_all(24)
+	cp_style.shadow_size = 40
+	cp_style.shadow_color = Color(0, 0, 0, 0.7)
+	cp_style.shadow_offset = Vector2(0, 6)
+	card_panel.add_theme_stylebox_override("panel", cp_style)
+	card_panel.custom_minimum_size = Vector2(520, 580)
+	
+	var card_center = CenterContainer.new()
+	card_center.set_anchors_preset(Control.PRESET_FULL_RECT)
+	card_center.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(card_center)
+	card_center.add_child(card_panel)
+	
+	# === Viền vàng trang trí bên trong panel ===
+	var inner_border = Panel.new()
+	var ib_style = StyleBoxFlat.new()
+	ib_style.bg_color = Color(0, 0, 0, 0)
+	ib_style.set_border_width_all(1)
+	ib_style.border_color = Color(0.75, 0.60, 0.35, 0.35)
+	ib_style.set_corner_radius_all(18)
+	inner_border.add_theme_stylebox_override("panel", ib_style)
+	inner_border.set_anchors_preset(Control.PRESET_FULL_RECT)
+	inner_border.offset_left = 8; inner_border.offset_right = -8
+	inner_border.offset_top = 8; inner_border.offset_bottom = -8
+	inner_border.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	card_panel.add_child(inner_border)
+	
+	# === Suit decorations (♠ ♥ ♦ ♣) ===
+	var suits = ["♠", "♥", "♦", "♣"]
+	var suit_colors = [Color("#8ecae6"), Color("#e63946"), Color("#f4a261"), Color("#2a9d8f")]
+	for i in 4:
+		var s_lbl = Label.new()
+		s_lbl.text = suits[i]
+		s_lbl.add_theme_font_size_override("font_size", 28)
+		s_lbl.add_theme_color_override("font_color", Color(suit_colors[i], 0.15))
+		s_lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		card_panel.add_child(s_lbl)
+		s_lbl.position = Vector2(18 + i * 125, 12)
+	
+	# === Content margin inside card panel ===
+	var margin = MarginContainer.new()
+	margin.set_anchors_preset(Control.PRESET_FULL_RECT)
+	margin.add_theme_constant_override("margin_left", 40)
+	margin.add_theme_constant_override("margin_right", 40)
+	margin.add_theme_constant_override("margin_top", 30)
+	margin.add_theme_constant_override("margin_bottom", 30)
+	card_panel.add_child(margin)
+	
+	center_container = VBoxContainer.new()
+	center_container.add_theme_constant_override("separation", 10)
+	center_container.alignment = BoxContainer.ALIGNMENT_CENTER
+	center_container.modulate.a = 0.0
+	margin.add_child(center_container)
+	
+	# === TITLE inside panel ===
 	title_label = Label.new()
-	title_label.text = "LIAR'S POKER"
-	title_label.set_anchors_preset(Control.PRESET_TOP_WIDE)
-	title_label.offset_top = 80
-	title_label.offset_bottom = 180
+	title_label.text = "♠ LIAR'S POKER ♠"
 	title_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	title_label.add_theme_font_size_override("font_size", 72)
-	title_label.add_theme_color_override("font_color", Color("#ff1744"))
-	title_label.add_theme_constant_override("outline_size", 4)
-	title_label.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.9))
+	title_label.add_theme_font_size_override("font_size", 42)
+	title_label.add_theme_color_override("font_color", Color("#ffd700"))
+	title_label.add_theme_constant_override("outline_size", 3)
+	title_label.add_theme_color_override("font_outline_color", Color(0.4, 0.25, 0.0, 0.8))
 	title_label.modulate.a = 0.0
-	add_child(title_label)
+	center_container.add_child(title_label)
 	
 	# === SUBTITLE ===
 	subtitle_label = Label.new()
 	subtitle_label.text = "Tiền có thể kiếm lại... Mạng thì không."
-	subtitle_label.set_anchors_preset(Control.PRESET_TOP_WIDE)
-	subtitle_label.offset_top = 175
-	subtitle_label.offset_bottom = 220
 	subtitle_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	subtitle_label.add_theme_font_size_override("font_size", 22)
-	subtitle_label.add_theme_color_override("font_color", Color(0.7, 0.65, 0.6, 0.8))
-	subtitle_label.add_theme_constant_override("outline_size", 2)
-	subtitle_label.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.6))
+	subtitle_label.add_theme_font_size_override("font_size", 15)
+	subtitle_label.add_theme_color_override("font_color", Color(0.75, 0.65, 0.55, 0.7))
 	subtitle_label.modulate.a = 0.0
-	add_child(subtitle_label)
-
+	center_container.add_child(subtitle_label)
+	
+	# Separator
+	var sep1 = _make_gold_separator()
+	center_container.add_child(sep1)
+	
 	# === INPUT STYLES ===
 	var input_normal = StyleBoxFlat.new()
-	input_normal.bg_color = Color(1, 1, 1, 0.05)
-	input_normal.set_border_width_all(1)
-	input_normal.border_color = Color(1, 1, 1, 0.1)
-	input_normal.set_corner_radius_all(12)
+	input_normal.bg_color = Color(0.04, 0.06, 0.12, 0.9)
+	input_normal.set_border_width_all(2)
+	input_normal.border_color = Color("#c0965c")
+	input_normal.set_corner_radius_all(10)
 	input_normal.content_margin_left = 20; input_normal.content_margin_right = 20
 	input_normal.content_margin_top = 8; input_normal.content_margin_bottom = 8
 	
 	var input_focus = input_normal.duplicate()
-	input_focus.bg_color = Color(1, 1, 1, 0.08)
-	input_focus.border_color = Color("#ff1744")
-	input_focus.shadow_size = 12
-	input_focus.shadow_color = Color(1.0, 0.09, 0.27, 0.2)
-
-	# === CENTER FORM ===
-	center_container = VBoxContainer.new()
-	center_container.set_anchors_preset(Control.PRESET_CENTER)
-	center_container.offset_left = -220
-	center_container.offset_right = 220
-	center_container.offset_top = 20
-	center_container.offset_bottom = 310
-	center_container.add_theme_constant_override("separation", 18)
-	center_container.modulate.a = 0.0
-	add_child(center_container)
+	input_focus.bg_color = Color(0.06, 0.09, 0.18, 0.95)
+	input_focus.border_color = Color("#ffd700")
+	input_focus.shadow_size = 8
+	input_focus.shadow_color = Color(1.0, 0.84, 0.0, 0.15)
 	
-	# Tên người chơi
+	# === Tên người chơi ===
 	var name_label = Label.new()
-	name_label.text = "TÊN NGƯỜI CHƠI"
-	name_label.add_theme_font_size_override("font_size", 14)
-	name_label.add_theme_color_override("font_color", Color(1, 1, 1, 0.5))
+	name_label.text = "♦ TÊN NGƯỜI CHƠI"
+	name_label.add_theme_font_size_override("font_size", 13)
+	name_label.add_theme_color_override("font_color", Color("#c0965c"))
 	center_container.add_child(name_label)
 	
 	username_input = LineEdit.new()
 	username_input.placeholder_text = "Nhập biệt danh..."
 	username_input.add_theme_font_size_override("font_size", 20)
 	username_input.alignment = HORIZONTAL_ALIGNMENT_CENTER
-	username_input.custom_minimum_size.y = 50
+	username_input.custom_minimum_size.y = 46
 	username_input.add_theme_stylebox_override("normal", input_normal)
 	username_input.add_theme_stylebox_override("focus", input_focus)
-	username_input.add_theme_color_override("font_placeholder_color", Color(1, 1, 1, 0.25))
+	username_input.add_theme_color_override("font_placeholder_color", Color(1, 1, 1, 0.2))
+	username_input.add_theme_color_override("font_color", Color.WHITE)
 	center_container.add_child(username_input)
 	
-	# Nhãn hiển thị số dư lấp lánh sang trọng ngay trên Menu chính
+	# === Số dư tài khoản ===
 	money_display_label = Label.new()
-	money_display_label.text = "Số dư mặc định: $ 1000 $"
+	money_display_label.text = "💰 Số dư: $ 1000"
 	money_display_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	money_display_label.add_theme_font_size_override("font_size", 16)
-	money_display_label.add_theme_color_override("font_color", Color("#ffd54f"))
+	money_display_label.add_theme_color_override("font_color", Color("#4caf50"))
 	center_container.add_child(money_display_label)
 	
 	username_input.text_changed.connect(_on_username_changed)
 	
-	# Địa chỉ kết nối
+	# === Địa chỉ kết nối ===
 	var ip_label = Label.new()
-	ip_label.text = "ĐỊA CHỈ KẾT NỐI"
-	ip_label.add_theme_font_size_override("font_size", 14)
-	ip_label.add_theme_color_override("font_color", Color(1, 1, 1, 0.5))
+	ip_label.text = "♣ ĐỊA CHỈ KẾT NỐI"
+	ip_label.add_theme_font_size_override("font_size", 13)
+	ip_label.add_theme_color_override("font_color", Color("#c0965c"))
 	center_container.add_child(ip_label)
 	
 	ip_input = LineEdit.new()
 	ip_input.placeholder_text = "IP hoặc Link wss:// (để trống = LAN)"
-	ip_input.add_theme_font_size_override("font_size", 18)
+	ip_input.add_theme_font_size_override("font_size", 17)
 	ip_input.alignment = HORIZONTAL_ALIGNMENT_CENTER
-	ip_input.custom_minimum_size.y = 50
+	ip_input.custom_minimum_size.y = 46
 	ip_input.add_theme_stylebox_override("normal", input_normal)
 	ip_input.add_theme_stylebox_override("focus", input_focus)
-	ip_input.add_theme_color_override("font_placeholder_color", Color(1, 1, 1, 0.25))
+	ip_input.add_theme_color_override("font_placeholder_color", Color(1, 1, 1, 0.2))
+	ip_input.add_theme_color_override("font_color", Color.WHITE)
 	center_container.add_child(ip_input)
 	
-	# Nút bấm
+	# Separator
+	var sep2 = _make_gold_separator()
+	center_container.add_child(sep2)
+	
+	# === Buttons ===
 	var hbox = HBoxContainer.new()
-	hbox.add_theme_constant_override("separation", 20)
+	hbox.add_theme_constant_override("separation", 14)
 	hbox.alignment = BoxContainer.ALIGNMENT_CENTER
 	center_container.add_child(hbox)
 	
-	var btn_host = _create_premium_btn("🏠 TẠO PHÒNG", Color("#1565c0"), Color("#0d47a1"))
+	var btn_host = _create_premium_btn("🏠 TẠO PHÒNG", Color("#1a5276"), Color("#0e3d5c"))
 	btn_host.pressed.connect(_on_host)
-	
 	if OS.has_feature("web"):
 		btn_host.disabled = true
 		btn_host.tooltip_text = "Web không thể Host. Hãy dùng bản PC."
 		ip_input.placeholder_text = "Nhập link wss:// từ Host..."
-		
 	hbox.add_child(btn_host)
 	
-	var btn_join = _create_premium_btn("🎮 THAM GIA", Color("#2e7d32"), Color("#1b5e20"))
+	var btn_join = _create_premium_btn("🎮 THAM GIA", Color("#1e6f40"), Color("#145c32"))
 	btn_join.pressed.connect(_on_join)
 	hbox.add_child(btn_join)
 	
-	var btn_single = _create_premium_btn("🤖 CHƠI ĐƠN (VS BOTS)", Color("#ff8f00"), Color("#e65100"))
-	btn_single.custom_minimum_size.y = 52
+	var btn_single = _create_premium_btn("🤖 CHƠI ĐƠN (VS BOT)", Color("#c0965c"), Color("#a07a44"))
+	btn_single.custom_minimum_size.y = 50
 	btn_single.pressed.connect(_on_single_player)
 	center_container.add_child(btn_single)
 	
 	# Hướng dẫn kết nối
 	var help_label = Label.new()
 	help_label.text = "💡 Cùng WiFi: nhập IP  |  Khác mạng: dùng ngrok/playit"
-	help_label.add_theme_font_size_override("font_size", 13)
-	help_label.add_theme_color_override("font_color", Color(1, 1, 1, 0.3))
+	help_label.add_theme_font_size_override("font_size", 12)
+	help_label.add_theme_color_override("font_color", Color(1, 1, 1, 0.25))
 	help_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	center_container.add_child(help_label)
 	
@@ -189,6 +237,15 @@ func _ready():
 				print("PLAYER JOINED! STARTING GAME...")
 				_on_start_game()
 		)
+
+func _make_gold_separator() -> Control:
+	var sep_container = CenterContainer.new()
+	sep_container.custom_minimum_size.y = 12
+	var sep_line = ColorRect.new()
+	sep_line.custom_minimum_size = Vector2(280, 1)
+	sep_line.color = Color("#c0965c", 0.3)
+	sep_container.add_child(sep_line)
+	return sep_container
 
 # ============================================================
 # LOBBY PANEL
@@ -293,27 +350,27 @@ func _play_entrance_animation():
 
 func _start_title_pulse():
 	var tw = create_tween().set_loops()
-	tw.tween_property(title_label, "theme_override_colors/font_color", Color("#ff4444"), 1.5).set_trans(Tween.TRANS_SINE)
-	tw.tween_property(title_label, "theme_override_colors/font_color", Color("#ff1744"), 1.5).set_trans(Tween.TRANS_SINE)
+	tw.tween_property(title_label, "theme_override_colors/font_color", Color("#ffed8a"), 1.8).set_trans(Tween.TRANS_SINE)
+	tw.tween_property(title_label, "theme_override_colors/font_color", Color("#ffd700"), 1.8).set_trans(Tween.TRANS_SINE)
 
 func _create_ambient_particles():
-	# Tạo các chấm sáng nhỏ floating xung quanh
-	for i in range(8):
+	# Tạo các chấm sáng vàng/đỏ floating xung quanh phong cách casino
+	var colors = [Color("#c0965c"), Color("#ffd700"), Color("#e63946"), Color("#2a9d8f")]
+	for i in range(12):
 		var dot = Panel.new()
 		var s = StyleBoxFlat.new()
 		s.set_corner_radius_all(20)
-		s.bg_color = Color(1.0, 0.09, 0.27, randf_range(0.03, 0.08))
+		s.bg_color = Color(colors[i % 4], randf_range(0.03, 0.07))
 		dot.add_theme_stylebox_override("panel", s)
-		dot.size = Vector2(randf_range(4, 12), randf_range(4, 12))
-		dot.position = Vector2(randf_range(50, 1230), randf_range(50, 670))
+		dot.size = Vector2(randf_range(3, 10), randf_range(3, 10))
+		dot.position = Vector2(randf_range(30, 1250), randf_range(30, 690))
 		dot.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		add_child(dot)
 		
-		# Float animation
 		var tw = create_tween().set_loops()
-		var target_y = dot.position.y + randf_range(-40, 40)
-		tw.tween_property(dot, "position:y", target_y, randf_range(2.0, 4.0)).set_trans(Tween.TRANS_SINE)
-		tw.tween_property(dot, "position:y", dot.position.y, randf_range(2.0, 4.0)).set_trans(Tween.TRANS_SINE)
+		var target_y = dot.position.y + randf_range(-50, 50)
+		tw.tween_property(dot, "position:y", target_y, randf_range(2.5, 5.0)).set_trans(Tween.TRANS_SINE)
+		tw.tween_property(dot, "position:y", dot.position.y, randf_range(2.5, 5.0)).set_trans(Tween.TRANS_SINE)
 
 # ============================================================
 # BUTTON FACTORY
@@ -322,28 +379,27 @@ func _create_premium_btn(text: String, color: Color, dark_color: Color = Color()
 	if dark_color == Color(): dark_color = color.darkened(0.2)
 	var btn = Button.new()
 	btn.text = text
-	btn.custom_minimum_size = Vector2(200, 52)
+	btn.custom_minimum_size = Vector2(200, 48)
 	
 	var s = StyleBoxFlat.new()
 	s.bg_color = color
-	s.set_border_width_all(1)
-	s.border_color = Color(1, 1, 1, 0.15)
-	s.set_corner_radius_all(12)
-	s.shadow_size = 8; s.shadow_color = Color(0, 0, 0, 0.4)
+	s.set_border_width_all(2)
+	s.border_color = Color(0.85, 0.70, 0.45, 0.5)
+	s.set_corner_radius_all(10)
+	s.shadow_size = 6; s.shadow_color = Color(0, 0, 0, 0.4)
 	s.content_margin_left = 16; s.content_margin_right = 16
 	
 	var h = s.duplicate()
 	h.bg_color = color.lightened(0.15)
-	h.border_color = Color(1, 1, 1, 0.3)
-	h.shadow_size = 16; h.shadow_color = color
-	h.shadow_color.a = 0.3
+	h.border_color = Color("#ffd700")
+	h.shadow_size = 12; h.shadow_color = Color(color, 0.3)
 	
 	var p = s.duplicate()
 	p.bg_color = dark_color
-	p.shadow_size = 4
+	p.shadow_size = 2
 	
 	var d = s.duplicate()
-	d.bg_color = Color(0.3, 0.3, 0.3, 0.5)
+	d.bg_color = Color(0.2, 0.2, 0.2, 0.5)
 	d.border_color = Color(1, 1, 1, 0.05)
 	d.shadow_size = 0
 	
@@ -351,7 +407,7 @@ func _create_premium_btn(text: String, color: Color, dark_color: Color = Color()
 	btn.add_theme_stylebox_override("hover", h)
 	btn.add_theme_stylebox_override("pressed", p)
 	btn.add_theme_stylebox_override("disabled", d)
-	btn.add_theme_font_size_override("font_size", 18)
+	btn.add_theme_font_size_override("font_size", 17)
 	btn.add_theme_color_override("font_color", Color.WHITE)
 	return btn
 
@@ -361,7 +417,6 @@ func _create_premium_btn(text: String, color: Color, dark_color: Color = Color()
 func _on_connection_error():
 	status_label.text = "❌ LỖI KẾT NỐI! Kiểm tra lại IP/Link."
 	status_label.add_theme_color_override("font_color", Color("#ff5252"))
-	# Hiệu ứng rung
 	var tw = create_tween()
 	tw.tween_property(lobby_panel, "position:x", lobby_panel.position.x + 10, 0.05)
 	tw.tween_property(lobby_panel, "position:x", lobby_panel.position.x - 10, 0.05)
@@ -378,10 +433,17 @@ func _on_username_changed(new_text: String):
 func _update_money_display(name_str: String):
 	var target_name = name_str.strip_edges()
 	if target_name == "":
-		money_display_label.text = "Số dư mặc định: $ 1000 $"
+		money_display_label.text = "💰 Số dư mặc định: $ 1000"
+		money_display_label.add_theme_color_override("font_color", Color("#4caf50"))
 	else:
 		var money = NetworkManager.load_player_money(target_name)
-		money_display_label.text = "Số dư tài khoản [" + target_name + "]: $ " + str(money) + " $"
+		money_display_label.text = "💰 Số dư [" + target_name + "]: $ " + str(money)
+		if money >= 1000:
+			money_display_label.add_theme_color_override("font_color", Color("#4caf50"))
+		elif money > 0:
+			money_display_label.add_theme_color_override("font_color", Color("#ffd54f"))
+		else:
+			money_display_label.add_theme_color_override("font_color", Color("#ff5252"))
 
 func _get_name():
 	var n = username_input.text.strip_edges()
