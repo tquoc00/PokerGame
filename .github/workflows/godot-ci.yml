@@ -37,12 +37,6 @@ jobs:
           # Export to Web
           godot --headless --export-release "Web" build/web/index.html
 
-      # Github Pages doesn't support custom headers, so we use coi-serviceworker to enable SharedArrayBuffer
-      - name: Add coi-serviceworker
-        run: |
-          wget https://raw.githubusercontent.com/gzuidhof/coi-serviceworker/master/coi-serviceworker.min.js -O build/web/coi-serviceworker.min.js
-          sed -i 's|</head>|<script src="coi-serviceworker.min.js"></script></head>|g' build/web/index.html
-
       - name: Setup Pages
         uses: actions/configure-pages@v4
 
