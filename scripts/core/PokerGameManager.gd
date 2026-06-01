@@ -48,6 +48,9 @@ var challenge_btn_in: Button
 var challenge_btn_out: Button
 
 func _ready():
+	if multiplayer.is_server():
+		if not NetworkManager.ready_peers.has(1):
+			NetworkManager.ready_peers.append(1)
 	_build_ui()
 	# Báo cáo lên Server thông qua Autoload NetworkManager (Đảm bảo 100% không bị mất gói tin)
 	NetworkManager.server_notify_ready.rpc_id(1)
@@ -144,7 +147,7 @@ func _build_ui():
 	challenge_panel.add_child(cp_vbox)
 	
 	var cp_title = Label.new()
-	cp_title.text = "⚡ THỬ THÁCH SINH TỬ ALL-IN ⚡"
+	cp_title.text = "THỬ THÁCH SINH TỬ ALL-IN"
 	cp_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	cp_title.add_theme_font_size_override("font_size", 22)
 	cp_title.add_theme_color_override("font_color", Color("#ff1744"))
@@ -169,7 +172,7 @@ func _build_ui():
 	challenge_btn_in.custom_minimum_size = Vector2(200, 45)
 	challenge_btn_in.pressed.connect(func():
 		challenge_panel.hide()
-		rpc_id(1, "server_respond_all_in_challenge", "IN")
+		server_respond_all_in_challenge.rpc_id(1, "IN")
 	)
 	cp_hbox.add_child(challenge_btn_in)
 	
@@ -177,9 +180,10 @@ func _build_ui():
 	challenge_btn_out.custom_minimum_size = Vector2(200, 45)
 	challenge_btn_out.pressed.connect(func():
 		challenge_panel.hide()
-		rpc_id(1, "server_respond_all_in_challenge", "OUT")
+		server_respond_all_in_challenge.rpc_id(1, "OUT")
 	)
 	cp_hbox.add_child(challenge_btn_out)
+
 
 	
 	# POT
@@ -224,9 +228,9 @@ func _build_ui():
 	btn_container.add_theme_constant_override("separation", 8)
 	add_child(btn_container)
 	
-	btn_all_in = _create_btn("⚡ ALL IN", Color("#e65100")); btn_all_in.pressed.connect(func(): _send_action.rpc_id(1, "ALL_IN"))
-	btn_call = _create_btn("✦ CALL", Color("#2e7d32")); btn_call.pressed.connect(func(): _send_action.rpc_id(1, "CALL"))
-	btn_fold = _create_btn("✕ FOLD", Color("#c62828")); btn_fold.pressed.connect(func(): _send_action.rpc_id(1, "FOLD"))
+	btn_all_in = _create_btn("ALL IN", Color("#e65100")); btn_all_in.pressed.connect(func(): _send_action.rpc_id(1, "ALL_IN"))
+	btn_call = _create_btn("CALL", Color("#2e7d32")); btn_call.pressed.connect(func(): _send_action.rpc_id(1, "CALL"))
+	btn_fold = _create_btn("FOLD", Color("#c62828")); btn_fold.pressed.connect(func(): _send_action.rpc_id(1, "FOLD"))
 	btn_container.add_child(btn_all_in); btn_container.add_child(btn_call); btn_container.add_child(btn_fold)
 	_disable_buttons()
 	
@@ -282,7 +286,7 @@ func _build_ui():
 		bet_input.add_theme_stylebox_override("normal", le_style)
 		hbox.add_child(bet_input)
 		
-		btn_start_round = _create_btn("▶ CHIA BÀI", Color("#1565c0"))
+		btn_start_round = _create_btn("CHIA BÀI", Color("#1565c0"))
 		btn_start_round.custom_minimum_size = Vector2(190, 35)
 		btn_start_round.add_theme_font_size_override("font_size", 14)
 		btn_start_round.pressed.connect(_on_host_start_round)
@@ -293,7 +297,7 @@ func _build_ui():
 		_check_all_ready()
 		
 	# Nút Thoát Game (Có mặt ở mọi lúc để quay lại Menu chính)
-	var btn_exit = _create_btn("✕ THOÁT", Color("#c62828"))
+	var btn_exit = _create_btn("THOÁT", Color("#c62828"))
 	btn_exit.position = Vector2(20, 20)
 	btn_exit.size = Vector2(120, 45)
 	btn_exit.pressed.connect(func(): NetworkManager.leave_game())
@@ -316,7 +320,7 @@ func _build_ui():
 	add_child(guide_trigger)
 	
 	var gt_lbl = Label.new()
-	gt_lbl.text = "❓ XẾP HẠNG BÀI"
+	gt_lbl.text = "HƯỚNG DẪN BÀI"
 	gt_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	gt_lbl.add_theme_font_size_override("font_size", 12)
 	gt_lbl.add_theme_color_override("font_color", Color("#ffd54f"))
@@ -570,7 +574,7 @@ func _build_ui():
 
 func _update_guide_popup(guide_popup: PanelContainer):
 	if is_mouse_over_trigger or is_mouse_over_popup:
-		if _guide_tween:
+		if _guide_tween and _guide_tween.is_valid():
 			_guide_tween.kill()
 		
 		guide_popup.move_to_front()
@@ -583,7 +587,7 @@ func _update_guide_popup(guide_popup: PanelContainer):
 		# Tạo cầu nối trễ 120ms khi người chơi chuyển chuột từ nút sang bảng
 		await get_tree().create_timer(0.12).timeout
 		if not is_mouse_over_trigger and not is_mouse_over_popup:
-			if _guide_tween:
+			if _guide_tween and _guide_tween.is_valid():
 				_guide_tween.kill()
 			
 			_guide_tween = create_tween().set_parallel(true)
