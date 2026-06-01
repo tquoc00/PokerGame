@@ -18,6 +18,7 @@ var my_hand: Array[Card] = []
 var turn_order: Array = [] # Array of peer_ids
 var current_turn_idx: int = 0
 var active_players: Dictionary = {} # peer_id -> { has_folded: bool, bullets_bet: int }
+var server_player_hands: Dictionary = {} # peer_id -> Array[Card]
 
 # --- UI references ---
 var info_label: Label
@@ -211,10 +212,12 @@ func start_server_game():
 		active_players[pid] = { "has_folded": false, "bullets_bet": 0 }
 	
 	# Deal Hands
+	server_player_hands.clear()
 	var hand_data = {} # peer_id -> [{suit, rank}, {suit, rank}]
 	for pid in turn_order:
 		var c1 = deck.draw_card()
 		var c2 = deck.draw_card()
+		server_player_hands[pid] = [c1, c2]
 		hand_data[pid] = [{"suit": c1.suit, "rank": c1.rank}, {"suit": c2.suit, "rank": c2.rank}]
 	
 	# Deal Community
@@ -283,10 +286,62 @@ func _server_next_turn():
 func _server_force_showdown():
 	state = GameState.SHOWDOWN
 	rpc("client_advance_phase", state)
-	
-	# Evaluate (Simplified: just show hands)
-	# ... (Full evaluate logic omitted for brevity, let's just trigger flip)
 	rpc("client_showdown")
+	
+	# Phân tích kết quả Poker để tìm người thắng bài mạnh nhất và thua bài yếu nhất
+	var best_score = -1
+	var best_pid = -1
+	var best_name = ""
+	var best_hand_name = ""
+	
+	var worst_score = 9999999
+	var worst_pid = -1
+	var worst_name = ""
+	
+	for pid in active_players:
+		if active_players[pid].has_folded: continue
+		
+		var combined_cards: Array[Card] = []
+		combined_cards.append_array(server_player_hands[pid])
+		combined_cards.append_array(community_cards)
+		
+		var result = HandEvaluator.evaluate(combined_cards)
+		var total_score = int(result.rank) * 10000 + result.score
+		
+		if total_score > best_score:
+			best_score = total_score
+			best_pid = pid
+			best_name = NetworkManager.players[pid].name if NetworkManager.players.has(pid) else "Người chơi"
+			best_hand_name = result.name
+			
+		if total_score < worst_score:
+			worst_score = total_score
+			worst_pid = pid
+			worst_name = NetworkManager.players[pid].name if NetworkManager.players.has(pid) else "Người chơi"
+
+	var winner_name = best_name
+	var winner_hand = best_hand_name
+	var loser_name = ""
+	var added_b = pot_bullets
+	var eliminated_name = ""
+	
+	if worst_pid != -1:
+		loser_name = worst_name
+		var old_bullets = NetworkManager.players[worst_pid].total_bullets
+		var new_bullets = min(old_bullets + pot_bullets, MAX_BULLETS)
+		NetworkManager.players[worst_pid].total_bullets = new_bullets
+		rpc("client_sync_bullets", worst_pid, new_bullets)
+		
+		if new_bullets >= MAX_BULLETS:
+			eliminated_name = worst_name
+			
+	# Kiểm tra xem có ai fold mà bị full đạn (loại) không
+	for pid in active_players:
+		if active_players[pid].has_folded:
+			if NetworkManager.players[pid].total_bullets >= MAX_BULLETS:
+				eliminated_name = NetworkManager.players[pid].name
+				
+	rpc("client_announce_result", winner_name, winner_hand, loser_name, added_b, eliminated_name)
 	
 	await get_tree().create_timer(5.0).timeout
 	
@@ -309,10 +364,10 @@ func client_start_game(hand_data: Dictionary, comm_data: Array, pot: int, first_
 	for cui in community_card_uis: cui.queue_free()
 	community_card_uis.clear()
 	
-	# Deal Community
+	# Deal Community (Căn giữa hoàn hảo bằng mốc 440px)
 	for i in comm_data.size():
 		var c = Card.new(comm_data[i].suit, comm_data[i].rank)
-		var cui = _spawn_card(c, Vector2(340 + i * 100, 285), false)
+		var cui = _spawn_card(c, Vector2(440 + i * 100, 285), false)
 		community_card_uis.append(cui)
 		
 	# Deal Player Hands
@@ -383,10 +438,21 @@ func client_showdown():
 		if pid != multiplayer.get_unique_id():
 			for cui in player_panels[pid].card_uis:
 				cui.flip_up()
-	
+				
 	# Mở hết bài chung
 	for cui in community_card_uis:
 		if not cui.is_face_up: cui.flip_up()
+	
+@rpc("authority", "reliable", "call_local")
+func client_announce_result(w_name: String, w_hand: String, l_name: String, added_b: int, elim_name: String):
+	var msg = ""
+	if w_name != "":
+		msg += w_name + " THẮNG với " + w_hand + "! "
+	if l_name != "":
+		msg += "\n" + l_name + " THUA phải nạp thêm " + str(added_b) + " viên!"
+	if elim_name != "":
+		msg += "\n💀 " + elim_name + " ĐÃ BỊ BẮN BỞI ROULETTE (LOẠI)!"
+	info_label.text = msg
 
 func _disable_buttons():
 	btn_call.disabled = true; btn_fold.disabled = true; btn_all_in.disabled = true
