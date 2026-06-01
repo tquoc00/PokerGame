@@ -65,7 +65,7 @@ func _ready():
 func _build_ui():
 	# Background
 	var bg = ColorRect.new()
-	bg.color = Color("#0d1117")
+	bg.color = Color("#080c14") # Matching Main Menu
 	bg.set_anchors_preset(Control.PRESET_FULL_RECT)
 	add_child(bg)
 	
@@ -97,12 +97,12 @@ func _build_ui():
 	# Result Overlay (hiện kết quả ván đấu không đè lên bàn)
 	result_overlay = Panel.new()
 	var ro_style = StyleBoxFlat.new()
-	ro_style.bg_color = Color(0, 0, 0, 0.85)
-	ro_style.set_corner_radius_all(16)
-	ro_style.set_border_width_all(2)
-	ro_style.border_color = Color("#ffd54f")
-	ro_style.shadow_size = 30
-	ro_style.shadow_color = Color(0, 0, 0, 0.6)
+	ro_style.bg_color = Color(0.08, 0.11, 0.20, 0.97) # Casino dark blue-green
+	ro_style.set_corner_radius_all(20)
+	ro_style.set_border_width_all(3)
+	ro_style.border_color = Color("#c0965c") # Gold border
+	ro_style.shadow_size = 40
+	ro_style.shadow_color = Color(0, 0, 0, 0.7)
 	result_overlay.add_theme_stylebox_override("panel", ro_style)
 	result_overlay.position = Vector2(240, 140)
 	result_overlay.size = Vector2(800, 300)
@@ -130,10 +130,10 @@ func _build_ui():
 	# All-In Challenge Overlay Panel (Thiết kế phong cách Sinh tử đỏ đen cực chất)
 	challenge_panel = PanelContainer.new()
 	var cp_style = StyleBoxFlat.new()
-	cp_style.bg_color = Color(0.12, 0.03, 0.03, 0.95) # Dark velvet-red
+	cp_style.bg_color = Color(0.12, 0.03, 0.03, 0.97) # Dark velvet-red
 	cp_style.set_border_width_all(3)
-	cp_style.border_color = Color("#ff1744") # Blood red border
-	cp_style.set_corner_radius_all(18)
+	cp_style.border_color = Color("#ffd700") # Gold border
+	cp_style.set_corner_radius_all(20)
 	cp_style.content_margin_left = 24
 	cp_style.content_margin_right = 24
 	cp_style.content_margin_top = 20
@@ -242,14 +242,16 @@ func _build_ui():
 		# Panel điều khiển cược của Host ở góc dưới bên trái
 		var host_panel = PanelContainer.new()
 		var h_style = StyleBoxFlat.new()
-		h_style.bg_color = Color(0.06, 0.09, 0.13, 0.85) # Glassmorphic dark
+		h_style.bg_color = Color(0.08, 0.11, 0.20, 0.95) # Casino dark blue-green
 		h_style.set_border_width_all(2)
-		h_style.border_color = Color("#1565c0") # Host blue theme accent
-		h_style.set_corner_radius_all(12)
+		h_style.border_color = Color("#c0965c") # Gold border accent
+		h_style.set_corner_radius_all(14)
 		h_style.content_margin_left = 12
 		h_style.content_margin_right = 12
 		h_style.content_margin_top = 8
 		h_style.content_margin_bottom = 8
+		h_style.shadow_size = 20
+		h_style.shadow_color = Color(0, 0, 0, 0.5)
 		host_panel.add_theme_stylebox_override("panel", h_style)
 		host_panel.position = Vector2(30, 480)
 		host_panel.size = Vector2(220, 130)
@@ -264,7 +266,7 @@ func _build_ui():
 		title_lbl.text = "BÀN PHÍM CHỦ PHÒNG"
 		title_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		title_lbl.add_theme_font_size_override("font_size", 14)
-		title_lbl.add_theme_color_override("font_color", Color("#90caf9"))
+		title_lbl.add_theme_color_override("font_color", Color("#ffd700"))
 		vbox.add_child(title_lbl)
 		
 		var hbox = HBoxContainer.new()
@@ -285,8 +287,10 @@ func _build_ui():
 		bet_input.add_theme_font_size_override("font_size", 14)
 		
 		var le_style = StyleBoxFlat.new()
-		le_style.bg_color = Color(1, 1, 1, 0.08)
-		le_style.set_corner_radius_all(4)
+		le_style.bg_color = Color(0.04, 0.06, 0.12, 0.9)
+		le_style.set_border_width_all(2)
+		le_style.border_color = Color("#c0965c")
+		le_style.set_corner_radius_all(8)
 		bet_input.add_theme_stylebox_override("normal", le_style)
 		hbox.add_child(bet_input)
 		
@@ -681,12 +685,13 @@ func client_remove_disconnected_player(disconnected_id: int):
 func _create_player_ui(peer_id: int, p_name: String, pos: Vector2, accent: Color):
 	var panel = PanelContainer.new()
 	var ps = StyleBoxFlat.new()
-	ps.bg_color = Color(0.04, 0.06, 0.09, 0.8) # Glassmorphic dark blue
+	ps.bg_color = Color(0.08, 0.11, 0.20, 0.95) # Casino dark blue-green
 	ps.border_width_left = 2; ps.border_width_right = 2; ps.border_width_top = 2; ps.border_width_bottom = 2
-	ps.border_color = Color(1, 1, 1, 0.12)
+	var is_me = (peer_id == multiplayer.get_unique_id())
+	ps.border_color = Color("#c0965c") if is_me else Color("#c0965c").darkened(0.2)
 	ps.corner_radius_top_left = 14; ps.corner_radius_top_right = 14; ps.corner_radius_bottom_left = 14; ps.corner_radius_bottom_right = 14
 	ps.content_margin_left = 18; ps.content_margin_right = 18; ps.content_margin_top = 10; ps.content_margin_bottom = 10
-	ps.shadow_size = 15; ps.shadow_color = Color(0, 0, 0, 0.4)
+	ps.shadow_size = 10; ps.shadow_color = Color(0, 0, 0, 0.5)
 	panel.add_theme_stylebox_override("panel", ps)
 	panel.position = pos
 	panel.size = Vector2(200, 80)
@@ -713,19 +718,19 @@ func _create_player_ui(peer_id: int, p_name: String, pos: Vector2, accent: Color
 func _create_btn(text: String, color: Color) -> Button:
 	var btn = Button.new(); btn.text = text; btn.custom_minimum_size = Vector2(180, 45)
 	var s = StyleBoxFlat.new(); s.bg_color = color
-	s.border_width_left = 1; s.border_width_right = 1; s.border_width_top = 1; s.border_width_bottom = 1
-	s.border_color = Color(1, 1, 1, 0.15)
+	s.border_width_left = 2; s.border_width_right = 2; s.border_width_top = 2; s.border_width_bottom = 2
+	s.border_color = Color(0.85, 0.70, 0.45, 0.5) # Gold accent border
 	s.corner_radius_top_left = 10; s.corner_radius_top_right = 10; s.corner_radius_bottom_left = 10; s.corner_radius_bottom_right = 10
-	s.shadow_size = 8; s.shadow_color = Color(0, 0, 0, 0.3)
+	s.shadow_size = 6; s.shadow_color = Color(0, 0, 0, 0.4)
 	
 	var h = s.duplicate()
 	h.bg_color = color.lightened(0.12)
-	h.border_color = Color(1, 1, 1, 0.3)
-	h.shadow_size = 12; h.shadow_color = color
-	h.shadow_color.a = 0.2
+	h.border_color = Color("#ffd700") # Glowing gold border on hover
+	h.shadow_size = 10; h.shadow_color = Color(color, 0.3)
 	
 	var p = s.duplicate()
 	p.bg_color = color.darkened(0.15)
+	p.shadow_size = 2
 	
 	btn.add_theme_stylebox_override("normal", s)
 	btn.add_theme_stylebox_override("hover", h)
@@ -1053,17 +1058,15 @@ func client_sync_turn(turn_id: int):
 	for pid in player_panels:
 		var ps = player_panels[pid].panel.get_theme_stylebox("panel") as StyleBoxFlat
 		if pid == turn_id:
-			# Viền phát sáng neon cực đẹp khi tới lượt!
-			ps.border_color = Color("#00e676") # Neon Green
-			ps.shadow_size = 20
-			ps.shadow_color = Color(0, 0.9, 0.46, 0.35)
+			# Viền phát sáng vàng neon cực đẹp khi tới lượt!
+			ps.border_color = Color("#ffd700") # Glowing Gold
+			ps.shadow_size = 22
+			ps.shadow_color = Color(1.0, 0.84, 0.0, 0.4)
 		else:
 			var is_me = (pid == multiplayer.get_unique_id())
-			ps.border_color = Color("#1b5e20") if is_me else Color("#b71c1c")
-			ps.border_color = ps.border_color.darkened(0.2)
-			ps.border_color.a = 0.4
-			ps.shadow_size = 8
-			ps.shadow_color = Color(0, 0, 0, 0.4)
+			ps.border_color = Color("#c0965c") if is_me else Color("#c0965c").darkened(0.2)
+			ps.shadow_size = 10
+			ps.shadow_color = Color(0, 0, 0, 0.5)
 			
 	if turn_id == multiplayer.get_unique_id():
 		info_label.text = "LƯỢT CỦA BẠN!"
@@ -1717,8 +1720,6 @@ func _clear_turn_highlights():
 		var ps = player_panels[pid].panel.get_theme_stylebox("panel") as StyleBoxFlat
 		if ps:
 			var is_me = (pid == multiplayer.get_unique_id())
-			ps.border_color = Color("#1b5e20") if is_me else Color("#b71c1c")
-			ps.border_color = ps.border_color.darkened(0.2)
-			ps.border_color.a = 0.4
-			ps.shadow_size = 8
-			ps.shadow_color = Color(0, 0, 0, 0.4)
+			ps.border_color = Color("#c0965c") if is_me else Color("#c0965c").darkened(0.2)
+			ps.shadow_size = 10
+			ps.shadow_color = Color(0, 0, 0, 0.5)
