@@ -28,9 +28,12 @@ var btn_fold: Button
 var btn_call: Button
 var btn_all_in: Button
 var btn_start_round: Button
-var player_panels: Dictionary = {} # peer_id -> { panel, name_label, bullet_box, card_uis: Array[CardUI] }
+var player_panels: Dictionary = {}
 var community_card_uis: Array[CardUI] = []
 var card_scene: PackedScene = preload("res://scenes/prefabs/CardUI.tscn")
+var result_overlay: Panel
+var result_label: Label
+var elim_overlay: ColorRect
 
 func _ready():
 	_build_ui()
@@ -65,12 +68,45 @@ func _build_ui():
 	info_label.position = Vector2(0, 90)
 	info_label.size = Vector2(1280, 40)
 	info_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	info_label.add_theme_font_size_override("font_size", 26)
+	info_label.add_theme_font_size_override("font_size", 22)
 	info_label.add_theme_color_override("font_color", Color(0.95, 0.9, 0.7))
 	info_label.add_theme_constant_override("outline_size", 3)
 	info_label.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.8))
 	info_label.text = "ĐANG CHỜ MÁY CHỦ..."
 	add_child(info_label)
+	
+	# Result Overlay (hiện kết quả ván đấu không đè lên bàn)
+	result_overlay = Panel.new()
+	var ro_style = StyleBoxFlat.new()
+	ro_style.bg_color = Color(0, 0, 0, 0.85)
+	ro_style.set_corner_radius_all(16)
+	ro_style.set_border_width_all(2)
+	ro_style.border_color = Color("#ffd54f")
+	ro_style.shadow_size = 30
+	ro_style.shadow_color = Color(0, 0, 0, 0.6)
+	result_overlay.add_theme_stylebox_override("panel", ro_style)
+	result_overlay.position = Vector2(240, 140)
+	result_overlay.size = Vector2(800, 300)
+	result_overlay.hide()
+	result_overlay.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(result_overlay)
+	
+	result_label = Label.new()
+	result_label.set_anchors_preset(Control.PRESET_FULL_RECT)
+	result_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	result_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	result_label.add_theme_font_size_override("font_size", 24)
+	result_label.add_theme_color_override("font_color", Color.WHITE)
+	result_label.add_theme_constant_override("outline_size", 3)
+	result_label.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.9))
+	result_overlay.add_child(result_label)
+	
+	# Elimination flash overlay
+	elim_overlay = ColorRect.new()
+	elim_overlay.set_anchors_preset(Control.PRESET_FULL_RECT)
+	elim_overlay.color = Color(1, 0, 0, 0)
+	elim_overlay.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(elim_overlay)
 	
 	# POT
 	var pot_area = VBoxContainer.new()
@@ -109,9 +145,9 @@ func _build_ui():
 	
 	# BUTTONS
 	var btn_container = VBoxContainer.new()
-	btn_container.position = Vector2(1070, 530)
-	btn_container.size = Vector2(190, 180)
-	btn_container.add_theme_constant_override("separation", 10)
+	btn_container.position = Vector2(1080, 420)
+	btn_container.size = Vector2(180, 200)
+	btn_container.add_theme_constant_override("separation", 8)
 	add_child(btn_container)
 	
 	btn_all_in = _create_btn("⚡ ALL IN", Color("#e65100")); btn_all_in.pressed.connect(func(): _send_action.rpc_id(1, "ALL_IN"))
@@ -447,6 +483,7 @@ func _server_force_showdown():
 func client_start_game(hand_data: Dictionary, comm_data: Array, pot: int, first_turn_id: int):
 	pot_bullets = pot
 	_draw_bullets(pot_bullet_container, pot_bullets, Color("#ef5350"))
+	result_overlay.hide()
 	
 	# Clear old cards
 	for pid in player_panels:
@@ -544,14 +581,44 @@ func client_showdown():
 	
 @rpc("authority", "reliable", "call_local")
 func client_announce_result(w_name: String, w_hand: String, l_name: String, added_b: int, elim_name: String):
-	var msg = ""
+	var lines = []
 	if w_name != "":
-		msg += w_name + " THẮNG với " + w_hand + "! "
+		lines.append("🏆 " + w_name + " THẮNG với " + w_hand + "!")
 	if l_name != "":
-		msg += "\n" + l_name + " THUA phải nạp thêm " + str(added_b) + " viên!"
+		lines.append("💀 " + l_name + " THUA - nạp thêm " + str(added_b) + " viên!")
 	if elim_name != "":
-		msg += "\n💀 " + elim_name + " ĐÃ BỊ BẮN BỞI ROULETTE (LOẠI)!"
-	info_label.text = msg
+		lines.append("")
+		lines.append("🔫 " + elim_name + " ĐÃ BỊ BẮN! (LOẠI)")
+	
+	info_label.text = "VÁN ĐẤU KẾT THÚC!"
+	_show_result_overlay("\n".join(lines))
+	
+	if elim_name != "":
+		_play_elimination_effect()
+
+func _show_result_overlay(msg: String):
+	result_label.text = msg
+	result_overlay.modulate.a = 0.0
+	result_overlay.scale = Vector2(0.8, 0.8)
+	result_overlay.pivot_offset = result_overlay.size / 2.0
+	result_overlay.show()
+	var tw = create_tween().set_parallel(true)
+	tw.tween_property(result_overlay, "modulate:a", 1.0, 0.4).set_trans(Tween.TRANS_SINE)
+	tw.tween_property(result_overlay, "scale", Vector2(1.0, 1.0), 0.4).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+
+func _play_elimination_effect():
+	# Flash đỏ toàn màn hình
+	elim_overlay.color = Color(1, 0, 0, 0.5)
+	var tw = create_tween()
+	tw.tween_property(elim_overlay, "color:a", 0.0, 1.0).set_trans(Tween.TRANS_SINE)
+	# Rung màn hình
+	var orig_pos = Vector2.ZERO
+	for i in 6:
+		var offset = Vector2(randf_range(-8, 8), randf_range(-8, 8))
+		var tw2 = create_tween()
+		tw2.tween_property(self, "position", offset, 0.04)
+		await tw2.finished
+	position = orig_pos
 
 func _disable_buttons():
 	btn_call.disabled = true; btn_fold.disabled = true; btn_all_in.disabled = true
