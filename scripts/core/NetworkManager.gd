@@ -102,7 +102,9 @@ func client_reject_join(reason: String):
 
 @rpc("authority", "reliable", "call_local")
 func sync_players(p_list: Dictionary):
-	players = p_list
+	players.clear()
+	for k in p_list:
+		players[int(k)] = p_list[k]
 	player_list_changed.emit()
 	
 @rpc("authority", "reliable", "call_local")

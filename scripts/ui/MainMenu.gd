@@ -120,6 +120,15 @@ func _ready():
 	NetworkManager.player_list_changed.connect(_update_lobby)
 	multiplayer.connection_failed.connect(_on_connection_error)
 	multiplayer.server_disconnected.connect(_on_server_died)
+	
+	if "--auto-server" in OS.get_cmdline_args():
+		print("--- AUTO SERVER MODE ---")
+		_on_host()
+		NetworkManager.player_list_changed.connect(func():
+			if NetworkManager.players.size() >= 2:
+				print("PLAYER JOINED! STARTING GAME...")
+				_on_start_game()
+		)
 
 func _create_fancy_btn(text: String, color: Color) -> Button:
 	var btn = Button.new(); btn.text = text; btn.custom_minimum_size = Vector2(180, 50)
