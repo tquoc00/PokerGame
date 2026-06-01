@@ -19,6 +19,7 @@ var turn_order: Array = [] # Array of peer_ids
 var current_turn_idx: int = 0
 var active_players: Dictionary = {} # peer_id -> { has_folded: bool, bullets_bet: int }
 var server_player_hands: Dictionary = {} # peer_id -> Array[Card]
+var ready_peers: Array = [] # Danh sách peer_id đã tải xong scene Table.tscn
 
 # --- UI references ---
 var info_label: Label
@@ -34,6 +35,8 @@ var card_scene: PackedScene = preload("res://scenes/prefabs/CardUI.tscn")
 
 func _ready():
 	_build_ui()
+	# Báo cáo lên Server rằng tôi đã load xong Table.tscn
+	rpc_id(1, "server_notify_ready")
 
 # ============================================================
 # UI CONSTRUCTION
@@ -123,12 +126,34 @@ func _build_ui():
 		btn_start_round.position = Vector2(540, 360)
 		btn_start_round.size = Vector2(200, 60)
 		btn_start_round.pressed.connect(_on_host_start_round)
+		btn_start_round.disabled = true # Mặc định khóa lại
 		add_child(btn_start_round)
-		info_label.text = "CHỦ PHÒNG HÃY BẤM CHIA BÀI ĐỂ BẮT ĐẦU"
+		info_label.text = "ĐANG CHỜ NGƯỜI CHƠI KHÁC TẢI XONG..."
+		_check_all_ready()
 
 func _on_host_start_round():
 	btn_start_round.hide()
 	start_server_game()
+
+@rpc("any_peer", "reliable")
+func server_notify_ready():
+	if not multiplayer.is_server(): return
+	var sender_id = multiplayer.get_remote_sender_id()
+	if sender_id == 0: sender_id = 1
+	if not ready_peers.has(sender_id):
+		ready_peers.append(sender_id)
+	_check_all_ready()
+
+func _check_all_ready():
+	if not multiplayer.is_server(): return
+	var all_ready = true
+	for pid in NetworkManager.players:
+		if not ready_peers.has(pid):
+			all_ready = false
+			break
+	if all_ready and btn_start_round:
+		btn_start_round.disabled = false
+		info_label.text = "MỌI NGƯỜI ĐÃ SẴN SÀNG! BẤM CHIA BÀI ĐỂ BẮT ĐẦU"
 
 func _create_player_ui(peer_id: int, p_name: String, pos: Vector2, accent: Color):
 	var panel = PanelContainer.new()
