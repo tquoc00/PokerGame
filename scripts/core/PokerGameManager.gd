@@ -607,18 +607,14 @@ func _show_result_overlay(msg: String):
 	tw.tween_property(result_overlay, "scale", Vector2(1.0, 1.0), 0.4).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 
 func _play_elimination_effect():
-	# Flash đỏ toàn màn hình
-	elim_overlay.color = Color(1, 0, 0, 0.5)
+	# Flash đỏ toàn màn hình (3 lần nhấp nháy mô phỏng phát súng)
 	var tw = create_tween()
-	tw.tween_property(elim_overlay, "color:a", 0.0, 1.0).set_trans(Tween.TRANS_SINE)
-	# Rung màn hình
-	var orig_pos = Vector2.ZERO
-	for i in 6:
-		var offset = Vector2(randf_range(-8, 8), randf_range(-8, 8))
-		var tw2 = create_tween()
-		tw2.tween_property(self, "position", offset, 0.04)
-		await tw2.finished
-	position = orig_pos
+	tw.tween_property(elim_overlay, "color:a", 0.6, 0.08)
+	tw.tween_property(elim_overlay, "color:a", 0.0, 0.15)
+	tw.tween_property(elim_overlay, "color:a", 0.4, 0.08)
+	tw.tween_property(elim_overlay, "color:a", 0.0, 0.15)
+	tw.tween_property(elim_overlay, "color:a", 0.3, 0.08)
+	tw.tween_property(elim_overlay, "color:a", 0.0, 0.8).set_trans(Tween.TRANS_SINE)
 
 func _disable_buttons():
 	btn_call.disabled = true; btn_fold.disabled = true; btn_all_in.disabled = true
