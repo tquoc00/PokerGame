@@ -868,7 +868,7 @@ func _server_force_showdown():
 		combined_cards.append_array(community_cards)
 		
 		var result = HandEvaluator.evaluate(combined_cards)
-		var total_score = int(result.rank) * 10000 + result.score
+		var total_score = int(result.rank) * 10000000 + result.score
 		
 		if total_score > best_score:
 			best_score = total_score
