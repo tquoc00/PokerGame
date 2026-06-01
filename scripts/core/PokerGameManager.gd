@@ -290,7 +290,7 @@ func _build_ui():
 		btn_start_round.custom_minimum_size = Vector2(190, 35)
 		btn_start_round.add_theme_font_size_override("font_size", 14)
 		btn_start_round.pressed.connect(_on_host_start_round)
-		btn_start_round.disabled = true # Mặc định khóa lại
+		btn_start_round.disabled = (NetworkManager.players.size() < 2)
 		vbox.add_child(btn_start_round)
 		
 		info_label.text = "ĐANG CHỜ NGƯỜI CHƠI KHÁC TẢI XONG..."
@@ -615,9 +615,12 @@ func _check_all_ready():
 		if not NetworkManager.ready_peers.has(pid):
 			all_ready = false
 			break
-	if all_ready and btn_start_round:
-		btn_start_round.disabled = false
+	if btn_start_round:
+		btn_start_round.disabled = (NetworkManager.players.size() < 2)
+	if all_ready:
 		info_label.text = "MỌI NGƯỜI ĐÃ SẴN SÀNG! BẤM CHIA BÀI ĐỂ BẮT ĐẦU"
+	else:
+		info_label.text = "ĐANG CHỜ NGƯỜI CHƠI KHÁC TẢI XONG..."
 
 func server_handle_player_disconnect(disconnected_id: int):
 	if not multiplayer.is_server(): return
