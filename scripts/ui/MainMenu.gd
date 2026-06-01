@@ -26,15 +26,15 @@ func _ready():
 	input_focus.shadow_size = 10
 	input_focus.shadow_color = Color(0, 0.69, 1.0, 0.25)
 
-	# Root CenterContainer giúp toàn bộ UI tự động cân giữa hoàn hảo trên mọi kích thước màn hình
-	var center_root = CenterContainer.new()
-	center_root.set_anchors_preset(Control.PRESET_FULL_RECT)
-	add_child(center_root)
-	
+	# Định vị VBoxContainer căn giữa ngang nhưng lệch dọc xuống dưới để tránh đè chữ lên Subtitle
 	var center = VBoxContainer.new()
-	center.custom_minimum_size = Vector2(400, 280)
-	center.add_theme_constant_override("separation", 20)
-	center_root.add_child(center)
+	center.set_anchors_preset(Control.PRESET_CENTER)
+	center.offset_left = -200
+	center.offset_right = 200
+	center.offset_top = 0 # Đẩy xuống dưới mốc Y=360 (Tâm màn hình)
+	center.offset_bottom = 290
+	center.add_theme_constant_override("separation", 15)
+	add_child(center)
 	
 	username_input = LineEdit.new()
 	username_input.placeholder_text = "Tên của bạn..."
@@ -165,6 +165,12 @@ func _on_join():
 		_show_lobby()
 
 func _show_lobby():
+	# Ẩn tiêu đề và phụ đề để giao diện sảnh chờ rộng rãi, chuyên nghiệp
+	var title = get_node_or_null("Title")
+	if title: title.hide()
+	var subtitle = get_node_or_null("Subtitle")
+	if subtitle: subtitle.hide()
+	
 	lobby_panel.show()
 	_update_lobby()
 
