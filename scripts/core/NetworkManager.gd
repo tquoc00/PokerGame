@@ -102,6 +102,10 @@ func client_reject_join(reason: String):
 
 @rpc("authority", "reliable", "call_local")
 func sync_players(p_list: Dictionary):
+	if multiplayer.is_server():
+		player_list_changed.emit()
+		return # Server đã tự quản lý biến players
+		
 	players.clear()
 	for k in p_list:
 		players[int(k)] = p_list[k]
