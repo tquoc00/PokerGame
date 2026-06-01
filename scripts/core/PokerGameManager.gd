@@ -225,6 +225,123 @@ func _build_ui():
 	btn_exit.pressed.connect(func(): NetworkManager.leave_game())
 	add_child(btn_exit)
 
+	# === BẢNG HƯỚNG DẪN XẾP HẠNG BÀI (Cheat Sheet giống Liar's Bar) ===
+	var guide_trigger = PanelContainer.new()
+	var gt_style = StyleBoxFlat.new()
+	gt_style.bg_color = Color(0.09, 0.12, 0.17, 0.85)
+	gt_style.set_border_width_all(1)
+	gt_style.border_color = Color("#ffb300") # Gold accent
+	gt_style.set_corner_radius_all(10)
+	gt_style.content_margin_left = 12
+	gt_style.content_margin_right = 12
+	gt_style.content_margin_top = 6
+	gt_style.content_margin_bottom = 6
+	guide_trigger.add_theme_stylebox_override("panel", gt_style)
+	guide_trigger.position = Vector2(1100, 20)
+	guide_trigger.size = Vector2(160, 36)
+	add_child(guide_trigger)
+	
+	var gt_lbl = Label.new()
+	gt_lbl.text = "❓ XẾP HẠNG BÀI"
+	gt_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	gt_lbl.add_theme_font_size_override("font_size", 12)
+	gt_lbl.add_theme_color_override("font_color", Color("#ffd54f"))
+	guide_trigger.add_child(gt_lbl)
+	
+	# Tạo Guide Popup Panel
+	var guide_popup = PanelContainer.new()
+	var gp_style = StyleBoxFlat.new()
+	gp_style.bg_color = Color(0.04, 0.06, 0.1, 0.95) # Dark rich glassmorphism
+	gp_style.set_border_width_all(2)
+	gp_style.border_color = Color("#ffb300")
+	gp_style.set_corner_radius_all(14)
+	gp_style.content_margin_left = 16
+	gp_style.content_margin_right = 16
+	gp_style.content_margin_top = 16
+	gp_style.content_margin_bottom = 16
+	gp_style.shadow_size = 25
+	gp_style.shadow_color = Color(0, 0, 0, 0.6)
+	guide_popup.add_theme_stylebox_override("panel", gp_style)
+	guide_popup.position = Vector2(930, 70)
+	guide_popup.size = Vector2(330, 480)
+	guide_popup.visible = false
+	guide_popup.modulate.a = 0.0
+	add_child(guide_popup)
+	
+	var gp_vbox = VBoxContainer.new()
+	gp_vbox.add_theme_constant_override("separation", 8)
+	guide_popup.add_child(gp_vbox)
+	
+	var gp_title = Label.new()
+	gp_title.text = "THỨ HẠNG TAY BÀI"
+	gp_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	gp_title.add_theme_font_size_override("font_size", 16)
+	gp_title.add_theme_color_override("font_color", Color("#ffb300"))
+	gp_vbox.add_child(gp_title)
+	
+	var gp_divider = ColorRect.new()
+	gp_divider.color = Color(1, 1, 1, 0.15)
+	gp_divider.custom_minimum_size = Vector2(0, 2)
+	gp_vbox.add_child(gp_divider)
+	
+	# ScrollContainer cho danh sách
+	var scroll = ScrollContainer.new()
+	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	gp_vbox.add_child(scroll)
+	
+	var list_vbox = VBoxContainer.new()
+	list_vbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	list_vbox.add_theme_constant_override("separation", 10)
+	scroll.add_child(list_vbox)
+	
+	var hands_data = [
+		{"name": "1. Royal Flush", "desc": "Sảnh đồng chất cao (10-J-Q-K-A)", "color": "#ffb300"},
+		{"name": "2. Straight Flush", "desc": "Sảnh đồng chất bất kỳ (vd: 5-6-7-8-9)", "color": "#ff8f00"},
+		{"name": "3. Four of a Kind", "desc": "Tứ Quý (4 lá cùng bậc, vd: 4 lá 9)", "color": "#29b6f6"},
+		{"name": "4. Full House", "desc": "Cù Lũ (1 bộ ba + 1 bộ đôi)", "color": "#66bb6a"},
+		{"name": "5. Flush", "desc": "Thùng (5 lá cùng chất, không liên tiếp)", "color": "#ab47bc"},
+		{"name": "6. Straight", "desc": "Sảnh (5 lá liên tiếp, khác chất)", "color": "#26a69a"},
+		{"name": "7. Three of a Kind", "desc": "Sám Cô (3 lá cùng bậc, vd: 3 lá K)", "color": "#d4e157"},
+		{"name": "8. Two Pair", "desc": "Thú (2 cặp đôi khác nhau)", "color": "#ff7043"},
+		{"name": "9. One Pair", "desc": "Một Đôi (2 lá cùng bậc, vd: Đôi A)", "color": "#e0e0e0"},
+		{"name": "10. High Card", "desc": "Mậu Thầu (Lá bài cao nhất trong bộ)", "color": "#9e9e9e"}
+	]
+	
+	for h in hands_data:
+		var item_vbox = VBoxContainer.new()
+		item_vbox.add_theme_constant_override("separation", 2)
+		list_vbox.add_child(item_vbox)
+		
+		var item_title = Label.new()
+		item_title.text = h.name
+		item_title.add_theme_font_size_override("font_size", 14)
+		item_title.add_theme_color_override("font_color", Color(h.color))
+		item_vbox.add_child(item_title)
+		
+		var item_desc = Label.new()
+		item_desc.text = h.desc
+		item_desc.add_theme_font_size_override("font_size", 11)
+		item_desc.add_theme_color_override("font_color", Color(1, 1, 1, 0.6))
+		item_vbox.add_child(item_desc)
+	
+	# Kết nối sự kiện chuột trỏ vào / trỏ ra để tạo hiệu ứng Pop-up tuyệt đẹp!
+	guide_trigger.mouse_entered.connect(func():
+		guide_popup.move_to_front()
+		guide_popup.show()
+		var tw = create_tween().set_parallel(true)
+		tw.tween_property(guide_popup, "modulate:a", 1.0, 0.25).set_trans(Tween.TRANS_SINE)
+		tw.tween_property(guide_popup, "position:y", 70.0, 0.25).set_trans(Tween.TRANS_QUART).set_ease(Tween.EASE_OUT)
+	)
+	
+	guide_trigger.mouse_exited.connect(func():
+		var tw = create_tween().set_parallel(true)
+		tw.tween_property(guide_popup, "modulate:a", 0.0, 0.2).set_trans(Tween.TRANS_SINE)
+		tw.tween_property(guide_popup, "position:y", 90.0, 0.2).set_trans(Tween.TRANS_SINE)
+		await tw.finished
+		if guide_popup.modulate.a == 0.0:
+			guide_popup.hide()
+	)
+
 func _on_host_start_round():
 	var host_settings = get_node_or_null("HostSettings")
 	var starting_bet = 100
