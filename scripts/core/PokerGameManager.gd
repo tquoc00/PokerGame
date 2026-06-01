@@ -911,13 +911,27 @@ func _server_force_showdown():
 			score = int(result.rank) * 10000000 + result.score
 			hand_name = result.name
 			
+		var card1_suit = -1
+		var card1_rank = -1
+		var card2_suit = -1
+		var card2_rank = -1
+		if server_player_hands.has(pid) and server_player_hands[pid].size() >= 2:
+			card1_suit = server_player_hands[pid][0].suit
+			card1_rank = server_player_hands[pid][0].rank
+			card2_suit = server_player_hands[pid][1].suit
+			card2_rank = server_player_hands[pid][1].rank
+
 		ranking_list.append({
 			"pid": pid,
 			"name": p_name,
 			"hand": hand_name,
 			"score": score,
 			"is_folded": is_folded,
-			"is_winner": false
+			"is_winner": false,
+			"card1_suit": card1_suit,
+			"card1_rank": card1_rank,
+			"card2_suit": card2_suit,
+			"card2_rank": card2_rank
 		})
 		
 	ranking_list.sort_custom(func(a, b): return a.score > b.score)
@@ -1071,6 +1085,10 @@ func get_accented_hand_name(unaccented_name: String) -> String:
 		_: return unaccented_name
 
 func _show_result_overlay_leaderboard(winner_name: String, won_amount: int, ranking_list: Array, eliminated_name: String):
+	# Điều chỉnh kích thước panel bảng xếp hạng to hơn để chứa đủ 5 cột và tự động căn giữa
+	result_overlay.size = Vector2(900, 330)
+	result_overlay.position = (Vector2(1280, 720) - result_overlay.size) / 2.0
+	
 	for child in result_overlay.get_children():
 		if child == result_label:
 			result_label.hide()
@@ -1081,12 +1099,12 @@ func _show_result_overlay_leaderboard(winner_name: String, won_amount: int, rank
 	margin.set_anchors_preset(Control.PRESET_FULL_RECT)
 	margin.add_theme_constant_override("margin_left", 30)
 	margin.add_theme_constant_override("margin_right", 30)
-	margin.add_theme_constant_override("margin_top", 20)
-	margin.add_theme_constant_override("margin_bottom", 20)
+	margin.add_theme_constant_override("margin_top", 15)
+	margin.add_theme_constant_override("margin_bottom", 15)
 	result_overlay.add_child(margin)
 	
 	var vbox = VBoxContainer.new()
-	vbox.add_theme_constant_override("separation", 14)
+	vbox.add_theme_constant_override("separation", 10)
 	vbox.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	margin.add_child(vbox)
 	
@@ -1100,19 +1118,19 @@ func _show_result_overlay_leaderboard(winner_name: String, won_amount: int, rank
 	vbox.add_child(title)
 	
 	var grid = GridContainer.new()
-	grid.columns = 4
-	grid.add_theme_constant_override("h_separation", 45)
-	grid.add_theme_constant_override("v_separation", 10)
+	grid.columns = 5
+	grid.add_theme_constant_override("h_separation", 35)
+	grid.add_theme_constant_override("v_separation", 8)
 	grid.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	grid.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	vbox.add_child(grid)
 	
-	var headers = ["Trạng Thái", "Người Chơi", "Hạng Bài (Tổ Hợp)", "Kết Quả / Tiền cược"]
+	var headers = ["Trạng Thái", "Người Chơi", "Bài Trên Tay", "Hạng Bài (Tổ Hợp)", "Kết Quả / Tiền cược"]
 	for h in headers:
 		var h_lbl = Label.new()
 		h_lbl.text = h
 		h_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		h_lbl.add_theme_font_size_override("font_size", 14)
+		h_lbl.add_theme_font_size_override("font_size", 13)
 		h_lbl.add_theme_color_override("font_color", Color("#90caf9"))
 		h_lbl.add_theme_constant_override("outline_size", 2)
 		h_lbl.add_theme_color_override("font_outline_color", Color.BLACK)
@@ -1120,6 +1138,7 @@ func _show_result_overlay_leaderboard(winner_name: String, won_amount: int, rank
 		
 	var idx = 1
 	for item in ranking_list:
+		# 1. Trạng Thái (Winner / Looser)
 		var status_lbl = Label.new()
 		if item.is_winner:
 			status_lbl.text = "👑 WINNER"
@@ -1133,6 +1152,7 @@ func _show_result_overlay_leaderboard(winner_name: String, won_amount: int, rank
 		status_lbl.add_theme_color_override("font_outline_color", Color.BLACK)
 		grid.add_child(status_lbl)
 		
+		# 2. Người Chơi
 		var name_lbl = Label.new()
 		name_lbl.text = item.name
 		if item.is_winner:
@@ -1145,6 +1165,40 @@ func _show_result_overlay_leaderboard(winner_name: String, won_amount: int, rank
 		name_lbl.add_theme_color_override("font_outline_color", Color.BLACK)
 		grid.add_child(name_lbl)
 		
+		# 3. Bài Trên Tay (Hai lá bài mini)
+		var card_hbox = HBoxContainer.new()
+		card_hbox.alignment = BoxContainer.ALIGNMENT_CENTER
+		card_hbox.add_theme_constant_override("separation", 5)
+		grid.add_child(card_hbox)
+		
+		if item.card1_rank != -1:
+			var c1 = Card.new(item.card1_suit, item.card1_rank)
+			var c2 = Card.new(item.card2_suit, item.card2_rank)
+			
+			for c in [c1, c2]:
+				var mini_c = card_scene.instantiate() as CardUI
+				card_hbox.add_child(mini_c)
+				mini_c.mouse_filter = Control.MOUSE_FILTER_IGNORE
+				mini_c.set_card(c, true)
+				
+				mini_c.custom_minimum_size = Vector2(32, 45)
+				mini_c.size = Vector2(32, 45)
+				
+				var sprite = mini_c.get_node_or_null("CardSprite") as TextureRect
+				if sprite:
+					sprite.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+					sprite.size = Vector2(32, 45)
+					
+				if item.is_folded:
+					mini_c.modulate = Color(1, 1, 1, 0.45)
+		else:
+			var no_card = Label.new()
+			no_card.text = "Đã úp"
+			no_card.add_theme_font_size_override("font_size", 12)
+			no_card.add_theme_color_override("font_color", Color("#ef5350"))
+			card_hbox.add_child(no_card)
+		
+		# 4. Hạng Bài
 		var hand_lbl = Label.new()
 		hand_lbl.text = get_accented_hand_name(item.hand)
 		if item.is_winner:
@@ -1160,6 +1214,7 @@ func _show_result_overlay_leaderboard(winner_name: String, won_amount: int, rank
 		hand_lbl.add_theme_color_override("font_outline_color", Color.BLACK)
 		grid.add_child(hand_lbl)
 		
+		# 5. Kết Quả
 		var money_lbl = Label.new()
 		if item.is_winner:
 			money_lbl.text = "+" + str(won_amount) + " $"
@@ -1280,8 +1335,43 @@ func server_respond_all_in_challenge(response: String):
 func client_log_challenge_response(r_name: String, r_text: String):
 	info_label.text = r_name + " " + r_text + " thử thách ALL-IN!"
 
+@rpc("authority", "reliable", "call_local")
+func client_highlight_all_in_choices(choices: Dictionary):
+	for pid in choices:
+		if not player_panels.has(pid): continue
+		var panel_ui = player_panels[pid]
+		var ps = panel_ui.panel.get_theme_stylebox("panel") as StyleBoxFlat
+		if ps:
+			if choices[pid] == "IN":
+				ps.border_color = Color("#00e676") # Neon Green
+				ps.shadow_size = 20
+				ps.shadow_color = Color(0, 0.9, 0.46, 0.35)
+			else:
+				ps.border_color = Color("#ff1744") # Blood Red
+				ps.shadow_size = 20
+				ps.shadow_color = Color(1.0, 0.09, 0.27, 0.35)
+
+@rpc("authority", "reliable", "call_local")
+func client_start_showdown_countdown():
+	info_label.text = "TẤT CẢ ĐÃ CHỌN! LẬT BÀI SAU 3 GIÂY..."
+	await get_tree().create_timer(1.0).timeout
+	info_label.text = "TẤT CẢ ĐÃ CHỌN! LẬT BÀI SAU 2 GIÂY..."
+	await get_tree().create_timer(1.0).timeout
+	info_label.text = "TẤT CẢ ĐÃ CHỌN! LẬT BÀI SAU 1 GIÂY..."
+	await get_tree().create_timer(1.0).timeout
+	info_label.text = "LẬT BÀI SINH TỬ!"
+
 func _server_process_all_in_results():
 	is_all_in_challenge = false
+	
+	# Phát sóng highlight khung tên xanh/đỏ cho tất cả mọi người
+	send_rpc("client_highlight_all_in_choices", [all_in_responses])
+	
+	# Đếm ngược 3s lật bài
+	send_rpc("client_start_showdown_countdown", [])
+	
+	# Chờ 3.0 giây đếm ngược kết thúc
+	await get_tree().create_timer(3.0).timeout
 	
 	# Áp dụng OUT (Fold)
 	for pid in all_in_responses:
@@ -1331,13 +1421,27 @@ func _server_force_instant_winner(winner_pid: int):
 		var is_winner = (pid == winner_pid)
 		var is_folded = active_players[pid].has_folded
 		var hand_name = "Mọi đối thủ đã rút lui" if is_winner else "Đã úp bài (Folded)"
+		var card1_suit = -1
+		var card1_rank = -1
+		var card2_suit = -1
+		var card2_rank = -1
+		if server_player_hands.has(pid) and server_player_hands[pid].size() >= 2:
+			card1_suit = server_player_hands[pid][0].suit
+			card1_rank = server_player_hands[pid][0].rank
+			card2_suit = server_player_hands[pid][1].suit
+			card2_rank = server_player_hands[pid][1].rank
+			
 		ranking_list.append({
 			"pid": pid,
 			"name": p_name,
 			"hand": hand_name,
 			"score": 1 if is_winner else -1,
 			"is_folded": is_folded,
-			"is_winner": is_winner
+			"is_winner": is_winner,
+			"card1_suit": card1_suit,
+			"card1_rank": card1_rank,
+			"card2_suit": card2_suit,
+			"card2_rank": card2_rank
 		})
 	ranking_list.sort_custom(func(a, b): return a.score > b.score)
 	
