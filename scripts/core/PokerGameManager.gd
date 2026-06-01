@@ -11,13 +11,13 @@ var deck: Deck
 var state: GameState = GameState.WAITING
 var community_cards: Array[Card] = []
 
-var pot_bullets: int = 1
-const MAX_BULLETS: int = 6
+var pot_money: int = 0
+var current_round_bet: int = 100
 
 var my_hand: Array[Card] = []
 var turn_order: Array = [] # Array of peer_ids
 var current_turn_idx: int = 0
-var active_players: Dictionary = {} # peer_id -> { has_folded: bool, bullets_bet: int }
+var active_players: Dictionary = {} # peer_id -> { has_folded: bool, money_bet: int }
 var server_player_hands: Dictionary = {} # peer_id -> Array[Card]
 
 # --- UI references ---
@@ -116,17 +116,17 @@ func _build_ui():
 	add_child(pot_area)
 	
 	pot_title = Label.new()
-	pot_title.text = "ÁN TỬ"
+	pot_title.text = "💰 HŨ TIỀN"
 	pot_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	pot_title.add_theme_font_size_override("font_size", 16)
-	pot_title.add_theme_color_override("font_color", Color(1.0, 0.45, 0.35, 0.9))
+	pot_title.add_theme_font_size_override("font_size", 18)
+	pot_title.add_theme_color_override("font_color", Color("#ffd54f"))
 	pot_area.add_child(pot_title)
 	
 	pot_bullet_container = HBoxContainer.new()
 	pot_bullet_container.alignment = BoxContainer.ALIGNMENT_CENTER
 	pot_bullet_container.add_theme_constant_override("separation", 6)
 	pot_area.add_child(pot_bullet_container)
-	_draw_bullets(pot_bullet_container, 0, Color("#ef5350"))
+	_draw_money(pot_bullet_container, 0, "")
 	
 	# Tạo Panel cho người chơi
 	var my_id = multiplayer.get_unique_id()
@@ -157,12 +157,39 @@ func _build_ui():
 	_disable_buttons()
 	
 	if multiplayer.is_server():
+		# HBoxContainer cho các điều khiển cược của Host
+		var host_settings = HBoxContainer.new()
+		host_settings.position = Vector2(440, 350)
+		host_settings.size = Vector2(400, 60)
+		host_settings.alignment = BoxContainer.ALIGNMENT_CENTER
+		host_settings.add_theme_constant_override("separation", 15)
+		host_settings.name = "HostSettings"
+		add_child(host_settings)
+		
+		var bet_lbl = Label.new()
+		bet_lbl.text = "Tiền cược:"
+		bet_lbl.add_theme_font_size_override("font_size", 18)
+		host_settings.add_child(bet_lbl)
+		
+		var bet_input = LineEdit.new()
+		bet_input.text = "100"
+		bet_input.name = "BetInput"
+		bet_input.custom_minimum_size = Vector2(80, 40)
+		bet_input.alignment = HORIZONTAL_ALIGNMENT_CENTER
+		bet_input.add_theme_font_size_override("font_size", 18)
+		
+		var le_style = StyleBoxFlat.new()
+		le_style.bg_color = Color(1, 1, 1, 0.1)
+		le_style.set_corner_radius_all(6)
+		bet_input.add_theme_stylebox_override("normal", le_style)
+		host_settings.add_child(bet_input)
+		
 		btn_start_round = _create_btn("▶ CHIA BÀI", Color("#1565c0"))
-		btn_start_round.position = Vector2(540, 360)
-		btn_start_round.size = Vector2(200, 60)
+		btn_start_round.custom_minimum_size = Vector2(150, 45)
 		btn_start_round.pressed.connect(_on_host_start_round)
 		btn_start_round.disabled = true # Mặc định khóa lại
-		add_child(btn_start_round)
+		host_settings.add_child(btn_start_round)
+		
 		info_label.text = "ĐANG CHỜ NGƯỜI CHƠI KHÁC TẢI XONG..."
 		_check_all_ready()
 		
@@ -174,8 +201,14 @@ func _build_ui():
 	add_child(btn_exit)
 
 func _on_host_start_round():
-	btn_start_round.hide()
-	start_server_game()
+	var host_settings = get_node_or_null("HostSettings")
+	var starting_bet = 100
+	if host_settings:
+		var bet_input = host_settings.get_node("BetInput") as LineEdit
+		if bet_input and bet_input.text.is_valid_int():
+			starting_bet = clampi(bet_input.text.to_int(), 10, 1000)
+		host_settings.hide()
+	start_server_game(starting_bet)
 
 func _check_all_ready():
 	if not multiplayer.is_server(): return
@@ -262,9 +295,9 @@ func _create_player_ui(peer_id: int, p_name: String, pos: Vector2, accent: Color
 	
 	player_panels[peer_id] = { "panel": panel, "name_label": lbl, "bullet_box": hbox, "card_uis": [] }
 	
-	var total_b = 0
-	if NetworkManager.players.has(peer_id): total_b = NetworkManager.players[peer_id].total_bullets
-	_draw_bullets(hbox, total_b, Color("#ffb300")) # Glow màu vàng đạn neon cực ngầu
+	var total_m = 1000
+	if NetworkManager.players.has(peer_id): total_m = NetworkManager.players[peer_id].money
+	_draw_money(hbox, total_m, "💰 ")
 
 func _create_btn(text: String, color: Color) -> Button:
 	var btn = Button.new(); btn.text = text; btn.custom_minimum_size = Vector2(180, 45)
@@ -289,21 +322,15 @@ func _create_btn(text: String, color: Color) -> Button:
 	btn.add_theme_font_size_override("font_size", 18)
 	return btn
 
-func _draw_bullets(container: HBoxContainer, count: int, color: Color):
+func _draw_money(container: HBoxContainer, amount: int, prefix: String = ""):
 	for c in container.get_children(): c.queue_free()
-	for i in MAX_BULLETS:
-		var bullet = Panel.new(); bullet.custom_minimum_size = Vector2(14, 35)
-		var s = StyleBoxFlat.new(); s.corner_radius_top_left = 8; s.corner_radius_top_right = 8; s.corner_radius_bottom_left = 2; s.corner_radius_bottom_right = 2
-		if i < count:
-			s.bg_color = color
-			s.shadow_size = 6
-			s.shadow_color = color
-			s.shadow_color.a = 0.35 # Hiệu ứng phát sáng dạ quang neon
-		else:
-			s.bg_color = Color(1, 1, 1, 0.08)
-			s.shadow_size = 0
-		bullet.add_theme_stylebox_override("panel", s)
-		container.add_child(bullet)
+	var lbl = Label.new()
+	lbl.text = prefix + str(amount) + " $"
+	lbl.add_theme_font_size_override("font_size", 20)
+	lbl.add_theme_color_override("font_color", Color("#ffd54f"))
+	lbl.add_theme_constant_override("outline_size", 2)
+	lbl.add_theme_color_override("font_outline_color", Color.BLACK)
+	container.add_child(lbl)
 
 func _spawn_card(card: Card, target: Vector2, face_up: bool) -> CardUI:
 	var card_ui = card_scene.instantiate()
@@ -325,18 +352,23 @@ func _spawn_card(card: Card, target: Vector2, face_up: bool) -> CardUI:
 # ============================================================
 # SERVER LOGIC
 # ============================================================
-func start_server_game():
+func start_server_game(starting_bet: int):
 	deck = Deck.new()
 	deck.shuffle()
 	
-	pot_bullets = 1
+	current_round_bet = starting_bet
+	pot_money = starting_bet * NetworkManager.players.size()
 	state = GameState.PRE_FLOP
 	turn_order = NetworkManager.players.keys()
 	current_turn_idx = 0
 	
 	active_players.clear()
 	for pid in turn_order:
-		active_players[pid] = { "has_folded": false, "bullets_bet": 0 }
+		active_players[pid] = { "has_folded": false, "money_bet": starting_bet }
+		# Khấu trừ tiền cược bắt đầu ván
+		if NetworkManager.players.has(pid):
+			NetworkManager.players[pid].money = max(0, NetworkManager.players[pid].money - starting_bet)
+			rpc("client_sync_money", pid, NetworkManager.players[pid].money)
 	
 	# Deal Hands
 	server_player_hands.clear()
@@ -356,7 +388,7 @@ func start_server_game():
 		comm_data.append({"suit": c.suit, "rank": c.rank})
 		
 	# Broadcast Start
-	rpc("client_start_game", hand_data, comm_data, pot_bullets, turn_order[current_turn_idx])
+	rpc("client_start_game", hand_data, comm_data, pot_money, turn_order[current_turn_idx])
 
 @rpc("any_peer", "reliable", "call_local")
 func _send_action(action: String):
@@ -368,16 +400,20 @@ func _send_action(action: String):
 	
 	if action == "FOLD":
 		active_players[sender_id].has_folded = true
-		NetworkManager.players[sender_id].total_bullets = min(NetworkManager.players[sender_id].total_bullets + pot_bullets, MAX_BULLETS)
-		rpc("client_sync_bullets", sender_id, NetworkManager.players[sender_id].total_bullets)
 		
 	elif action == "CALL":
-		if pot_bullets < MAX_BULLETS: pot_bullets += 1
+		var bet_amount = min(current_round_bet, NetworkManager.players[sender_id].money)
+		NetworkManager.players[sender_id].money -= bet_amount
+		pot_money += bet_amount
+		rpc("client_sync_money", sender_id, NetworkManager.players[sender_id].money)
 		
 	elif action == "ALL_IN":
-		pot_bullets = MAX_BULLETS
+		var bet_amount = NetworkManager.players[sender_id].money
+		NetworkManager.players[sender_id].money = 0
+		pot_money += bet_amount
+		rpc("client_sync_money", sender_id, 0)
 	
-	rpc("client_sync_pot", pot_bullets, sender_id, action)
+	rpc("client_sync_pot", pot_money, sender_id, action)
 	
 	# Check if all folded except one
 	var active_count = 0
@@ -400,7 +436,7 @@ func _server_next_turn():
 		current_turn_idx = (current_turn_idx + 1) % turn_order.size()
 		if current_turn_idx == start_idx: break # Everyone folded?
 	
-	# Tạm thời đơn giản: Đổi vòng ngay nếu ai cũng đánh 1 lượt (cần logic Poker chuẩn hơn, nhưng tạm thời vòng quanh)
+	# Tạm thời đơn giản: Đổi vòng ngay nếu ai cũng đánh 1 lượt
 	if current_turn_idx == 0:
 		if state == GameState.PRE_FLOP: state = GameState.FLOP
 		elif state == GameState.FLOP: state = GameState.TURN
@@ -415,15 +451,11 @@ func _server_force_showdown():
 	rpc("client_advance_phase", state)
 	rpc("client_showdown")
 	
-	# Phân tích kết quả Poker để tìm người thắng bài mạnh nhất và thua bài yếu nhất
+	# Phân tích kết quả Poker để tìm người thắng bài mạnh nhất
 	var best_score = -1
 	var best_pid = -1
 	var best_name = ""
 	var best_hand_name = ""
-	
-	var worst_score = 9999999
-	var worst_pid = -1
-	var worst_name = ""
 	
 	for pid in active_players:
 		if active_players[pid].has_folded: continue
@@ -440,40 +472,32 @@ func _server_force_showdown():
 			best_pid = pid
 			best_name = NetworkManager.players[pid].name if NetworkManager.players.has(pid) else "Người chơi"
 			best_hand_name = result.name
-			
-		if total_score < worst_score:
-			worst_score = total_score
-			worst_pid = pid
-			worst_name = NetworkManager.players[pid].name if NetworkManager.players.has(pid) else "Người chơi"
 
 	var winner_name = best_name
 	var winner_hand = best_hand_name
-	var loser_name = ""
-	var added_b = pot_bullets
+	var won_amount = pot_money
 	var eliminated_name = ""
 	
-	if worst_pid != -1:
-		loser_name = worst_name
-		var old_bullets = NetworkManager.players[worst_pid].total_bullets
-		var new_bullets = min(old_bullets + pot_bullets, MAX_BULLETS)
-		NetworkManager.players[worst_pid].total_bullets = new_bullets
-		rpc("client_sync_bullets", worst_pid, new_bullets)
+	if best_pid != -1:
+		NetworkManager.players[best_pid].money += pot_money
+		rpc("client_sync_money", best_pid, NetworkManager.players[best_pid].money)
 		
-		if new_bullets >= MAX_BULLETS:
-			eliminated_name = worst_name
-			
-	# Kiểm tra xem có ai fold mà bị full đạn (loại) không
+	# Kiểm tra xem có ai hết tiền bị loại không
 	for pid in active_players:
-		if active_players[pid].has_folded:
-			if NetworkManager.players[pid].total_bullets >= MAX_BULLETS:
-				eliminated_name = NetworkManager.players[pid].name
+		if NetworkManager.players[pid].money <= 0:
+			eliminated_name = NetworkManager.players[pid].name
+			break
 				
-	rpc("client_announce_result", winner_name, winner_hand, loser_name, added_b, eliminated_name)
+	rpc("client_announce_result", winner_name, winner_hand, "", won_amount, eliminated_name)
 	
 	await get_tree().create_timer(5.0).timeout
 	
 	if multiplayer.is_server():
-		btn_start_round.show()
+		var host_settings = get_node_or_null("HostSettings")
+		if host_settings:
+			host_settings.show()
+		if btn_start_round:
+			btn_start_round.show()
 		info_label.text = "VÁN ĐẤU KẾT THÚC! CHỦ PHÒNG BẤM CHIA BÀI ĐỂ TIẾP TỤC"
 
 # ============================================================
@@ -481,8 +505,8 @@ func _server_force_showdown():
 # ============================================================
 @rpc("authority", "reliable", "call_local")
 func client_start_game(hand_data: Dictionary, comm_data: Array, pot: int, first_turn_id: int):
-	pot_bullets = pot
-	_draw_bullets(pot_bullet_container, pot_bullets, Color("#ef5350"))
+	pot_money = pot
+	_draw_money(pot_bullet_container, pot_money, "")
 	result_overlay.hide()
 	
 	# Clear old cards
@@ -542,8 +566,8 @@ func client_sync_turn(turn_id: int):
 
 @rpc("authority", "reliable", "call_local")
 func client_sync_pot(pot: int, actor_id: int, action: String):
-	pot_bullets = pot
-	_draw_bullets(pot_bullet_container, pot_bullets, Color("#ef5350"))
+	pot_money = pot
+	_draw_money(pot_bullet_container, pot_money, "")
 	var p_name = NetworkManager.players[actor_id].name
 	info_label.text = p_name + " đã " + action + "!"
 	
@@ -552,9 +576,9 @@ func client_sync_pot(pot: int, actor_id: int, action: String):
 			cui.modulate = Color(0.5, 0.5, 0.5, 0.5)
 
 @rpc("authority", "reliable", "call_local")
-func client_sync_bullets(pid: int, total: int):
-	NetworkManager.players[pid].total_bullets = total
-	_draw_bullets(player_panels[pid].bullet_box, total, Color("#ffc107"))
+func client_sync_money(pid: int, total: int):
+	NetworkManager.players[pid].money = total
+	_draw_money(player_panels[pid].bullet_box, total, "💰 ")
 
 @rpc("authority", "reliable", "call_local")
 func client_advance_phase(new_state: int):
@@ -584,11 +608,10 @@ func client_announce_result(w_name: String, w_hand: String, l_name: String, adde
 	var lines = []
 	if w_name != "":
 		lines.append("🏆 " + w_name + " THẮNG với " + w_hand + "!")
-	if l_name != "":
-		lines.append("💀 " + l_name + " THUA - nạp thêm " + str(added_b) + " viên!")
+		lines.append("💰 Nhận trọn hũ tiền: " + str(added_b) + " $!")
 	if elim_name != "":
 		lines.append("")
-		lines.append("🔫 " + elim_name + " ĐÃ BỊ BẮN! (LOẠI)")
+		lines.append("💀 " + elim_name + " ĐÃ BỊ LOẠI VÌ HẾT TIỀN!")
 	
 	info_label.text = "VÁN ĐẤU KẾT THÚC!"
 	_show_result_overlay("\n".join(lines))

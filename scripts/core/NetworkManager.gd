@@ -5,7 +5,7 @@ signal player_list_changed
 const PORT = 8080
 const MAX_PLAYERS = 4
 
-var players = {} # { peer_id: { "name": String, "total_bullets": 0 } }
+var players = {} # { peer_id: { "name": String, "money": 1000 } }
 var my_name = ""
 var ready_peers = [] # Danh sách các peer đã sẵn sàng trong Table scene
 
@@ -22,7 +22,7 @@ func host_game(player_name: String):
 		return false
 	
 	multiplayer.multiplayer_peer = peer
-	players[1] = { "name": player_name, "total_bullets": 0 }
+	players[1] = { "name": player_name, "money": 1000 }
 	player_list_changed.emit()
 	return true
 
@@ -88,7 +88,7 @@ func register_player(id: int, p_name: String):
 		if players.size() >= MAX_PLAYERS:
 			rpc_id(id, "client_reject_join", "PHÒNG ĐÃ ĐẦY! (TỐI ĐA 4 NGƯỜI)")
 			return
-		players[id] = { "name": p_name, "total_bullets": 0 }
+		players[id] = { "name": p_name, "money": 1000 }
 		rpc("sync_players", players)
 
 @rpc("authority", "reliable")
