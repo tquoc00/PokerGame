@@ -606,7 +606,7 @@ func _on_host_start_round():
 	var host_settings = get_node_or_null("HostSettings")
 	var starting_bet = 100
 	if host_settings:
-		var bet_input = host_settings.get_node("BetInput") as LineEdit
+		var bet_input = host_settings.find_child("BetInput") as LineEdit
 		if bet_input and bet_input.text.is_valid_int():
 			starting_bet = clampi(bet_input.text.to_int(), 10, 1000)
 		host_settings.hide()
@@ -999,6 +999,8 @@ func client_advance_phase(new_state: int):
 		community_card_uis[3].flip_up()
 	elif state == GameState.RIVER:
 		community_card_uis[4].flip_up()
+	elif state == GameState.SHOWDOWN:
+		_clear_turn_highlights()
 
 @rpc("authority", "reliable", "call_local")
 func client_showdown():
@@ -1343,3 +1345,14 @@ func send_challenge_response_to_server(response: String):
 		server_respond_all_in_challenge(response)
 	else:
 		server_respond_all_in_challenge.rpc_id(1, response)
+
+func _clear_turn_highlights():
+	for pid in player_panels:
+		var ps = player_panels[pid].panel.get_theme_stylebox("panel") as StyleBoxFlat
+		if ps:
+			var is_me = (pid == multiplayer.get_unique_id())
+			ps.border_color = Color("#1b5e20") if is_me else Color("#b71c1c")
+			ps.border_color = ps.border_color.darkened(0.2)
+			ps.border_color.a = 0.4
+			ps.shadow_size = 8
+			ps.shadow_color = Color(0, 0, 0, 0.4)
