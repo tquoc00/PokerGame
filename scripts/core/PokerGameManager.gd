@@ -730,9 +730,13 @@ func _create_btn(text: String, color: Color) -> Button:
 func _draw_money(container: HBoxContainer, amount: int, prefix: String = ""):
 	for c in container.get_children(): c.queue_free()
 	var lbl = Label.new()
-	lbl.text = prefix + str(amount) + " $"
+	if amount < 0:
+		lbl.text = "Nợ: " + str(amount) + " $"
+		lbl.add_theme_color_override("font_color", Color("#ff1744"))
+	else:
+		lbl.text = prefix + str(amount) + " $"
+		lbl.add_theme_color_override("font_color", Color("#ffd54f"))
 	lbl.add_theme_font_size_override("font_size", 20)
-	lbl.add_theme_color_override("font_color", Color("#ffd54f"))
 	lbl.add_theme_constant_override("outline_size", 2)
 	lbl.add_theme_color_override("font_outline_color", Color.BLACK)
 	container.add_child(lbl)
@@ -769,10 +773,10 @@ func start_server_game(starting_bet: int):
 	
 	active_players.clear()
 	for pid in turn_order:
-		active_players[pid] = { "has_folded": false, "money_bet": starting_bet }
-		# Khấu trừ tiền cược bắt đầu ván
+		active_players[pid] = { "has_folded": false, "money_bet": starting_bet, "is_all_in": false }
+		# Khấu trừ tiền cược bắt đầu ván (Hỗ trợ số âm)
 		if NetworkManager.players.has(pid):
-			NetworkManager.players[pid].money = max(0, NetworkManager.players[pid].money - starting_bet)
+			NetworkManager.players[pid].money -= starting_bet
 			send_rpc("client_sync_money", [pid, NetworkManager.players[pid].money])
 	
 	# Deal Hands
@@ -807,21 +811,28 @@ func _send_action(action: String):
 		active_players[sender_id].has_folded = true
 		
 	elif action == "CALL":
-		var bet_amount = min(current_round_bet, NetworkManager.players[sender_id].money)
+		var bet_amount = current_round_bet
 		NetworkManager.players[sender_id].money -= bet_amount
 		pot_money += bet_amount
 		send_rpc("client_sync_money", [sender_id, NetworkManager.players[sender_id].money])
+		send_rpc("client_sync_pot", [pot_money, sender_id, action])
 		
 	elif action == "ALL_IN":
 		is_all_in_challenge = true
 		all_in_challenger_id = sender_id
 		all_in_responses.clear()
 		
-		# Challenger cược toàn bộ tiền và chọn IN
+		active_players[sender_id].is_all_in = true
+		
 		var bet_amount = NetworkManager.players[sender_id].money
-		NetworkManager.players[sender_id].money = 0
+		if bet_amount <= 0:
+			bet_amount = current_round_bet * 3
+			NetworkManager.players[sender_id].money -= bet_amount
+		else:
+			NetworkManager.players[sender_id].money = 0
+			
 		pot_money += bet_amount
-		send_rpc("client_sync_money", [sender_id, 0])
+		send_rpc("client_sync_money", [sender_id, NetworkManager.players[sender_id].money])
 		send_rpc("client_sync_pot", [pot_money, sender_id, action])
 		
 		all_in_responses[sender_id] = "IN"
@@ -835,16 +846,16 @@ func _send_action(action: String):
 	_server_next_turn()
 
 func _server_next_turn():
-	# Kiểm tra xem có cần bỏ qua vòng cược nếu mọi người (hoặc trừ tối đa 1 người) đã All-in (hết tiền)
+	# Kiểm tra xem có cần bỏ qua vòng cược nếu mọi người (hoặc trừ tối đa 1 người) đã All-in
 	var active_not_folded = 0
-	var players_with_money = 0
+	var players_not_all_in = 0
 	for pid in active_players:
 		if not active_players[pid].has_folded:
 			active_not_folded += 1
-			if NetworkManager.players.has(pid) and NetworkManager.players[pid].money > 0:
-				players_with_money += 1
+			if not active_players[pid].is_all_in:
+				players_not_all_in += 1
 				
-	if active_not_folded >= 2 and players_with_money <= 1:
+	if active_not_folded >= 2 and players_not_all_in <= 1:
 		# Tất cả (hoặc tất cả trừ 1 người) đã All-in. Tự động lật hết bài chung và Showdown!
 		while state != GameState.RIVER:
 			if state == GameState.PRE_FLOP: state = GameState.FLOP
@@ -856,9 +867,9 @@ func _server_next_turn():
 
 	current_turn_idx = (current_turn_idx + 1) % turn_order.size()
 	
-	# Lặp qua đến khi gặp người chưa fold và CÒN TIỀN (chưa All-in/hết tiền)
+	# Lặp qua đến khi gặp người chưa fold và chưa All-in
 	var start_idx = current_turn_idx
-	while active_players[turn_order[current_turn_idx]].has_folded or (NetworkManager.players.has(turn_order[current_turn_idx]) and NetworkManager.players[turn_order[current_turn_idx]].money <= 0):
+	while active_players[turn_order[current_turn_idx]].has_folded or active_players[turn_order[current_turn_idx]].is_all_in:
 		current_turn_idx = (current_turn_idx + 1) % turn_order.size()
 		if current_turn_idx == start_idx: break # Everyone folded or is all-in?
 	
@@ -1400,12 +1411,20 @@ func _server_process_all_in_results():
 			
 	# Áp dụng IN (All-in)
 	for pid in all_in_responses:
-		if all_in_responses[pid] == "IN" and pid != all_in_challenger_id:
-			var balance = NetworkManager.players[pid].money
-			NetworkManager.players[pid].money = 0
-			pot_money += balance
-			send_rpc("client_sync_money", [pid, 0])
-			send_rpc("client_sync_pot", [pot_money, pid, "ALL_IN"])
+		if all_in_responses[pid] == "IN":
+			active_players[pid].is_all_in = true
+			if pid != all_in_challenger_id:
+				var balance = NetworkManager.players[pid].money
+				var bet_amount = balance
+				if balance <= 0:
+					bet_amount = current_round_bet * 3
+					NetworkManager.players[pid].money -= bet_amount
+				else:
+					NetworkManager.players[pid].money = 0
+					
+				pot_money += bet_amount
+				send_rpc("client_sync_money", [pid, NetworkManager.players[pid].money])
+				send_rpc("client_sync_pot", [pot_money, pid, "ALL_IN"])
 			
 	# Kiểm tra số người chơi còn lại
 	var active_count = 0
@@ -1502,8 +1521,8 @@ func _on_bot_turn(bot_id: int):
 	if state == GameState.SHOWDOWN or state == GameState.WAITING: return
 	if turn_order.is_empty() or turn_order[current_turn_idx] != bot_id: return
 	
-	# Nếu Bot hết tiền (All-in), tự động chuyển lượt mà không thực hiện hành động
-	if NetworkManager.players.has(bot_id) and NetworkManager.players[bot_id].money <= 0:
+	# Nếu Bot đã All-in, tự động chuyển lượt mà không thực hiện hành động
+	if active_players.has(bot_id) and active_players[bot_id].is_all_in:
 		_server_next_turn()
 		return
 	
