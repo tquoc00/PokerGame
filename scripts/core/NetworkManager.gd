@@ -28,7 +28,11 @@ func host_game(player_name: String):
 func join_game(ip: String, player_name: String):
 	my_name = player_name
 	var peer = WebSocketMultiplayerPeer.new()
-	var url = "ws://" + ip + ":" + str(PORT)
+	
+	var url = ip
+	if not url.begins_with("ws://") and not url.begins_with("wss://"):
+		url = "ws://" + ip + ":" + str(PORT)
+		
 	var err = peer.create_client(url)
 	if err != OK:
 		print("Cannot join!")
