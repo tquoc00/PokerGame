@@ -1,6 +1,7 @@
 extends Control
 
 var username_input: LineEdit
+var money_display_label: Label
 var ip_input: LineEdit
 var lobby_panel: Panel
 var players_vbox: VBoxContainer
@@ -100,6 +101,16 @@ func _ready():
 	username_input.add_theme_color_override("font_placeholder_color", Color(1, 1, 1, 0.25))
 	center_container.add_child(username_input)
 	
+	# Nhãn hiển thị số dư lấp lánh sang trọng ngay trên Menu chính
+	money_display_label = Label.new()
+	money_display_label.text = "Số dư mặc định: $ 1000 $"
+	money_display_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	money_display_label.add_theme_font_size_override("font_size", 16)
+	money_display_label.add_theme_color_override("font_color", Color("#ffd54f"))
+	center_container.add_child(money_display_label)
+	
+	username_input.text_changed.connect(_on_username_changed)
+	
 	# Địa chỉ kết nối
 	var ip_label = Label.new()
 	ip_label.text = "ĐỊA CHỈ KẾT NỐI"
@@ -158,6 +169,14 @@ func _ready():
 	multiplayer.connection_failed.connect(_on_connection_error)
 	multiplayer.server_disconnected.connect(_on_server_died)
 	
+	# Load tên người chơi cuối cùng đã sử dụng
+	var last_name = NetworkManager.load_last_username()
+	if last_name != "":
+		username_input.text = last_name
+		_update_money_display(last_name)
+	else:
+		_update_money_display("")
+		
 	# === ENTRANCE ANIMATION ===
 	_play_entrance_animation()
 	
@@ -353,6 +372,17 @@ func _on_server_died():
 	status_label.text = "⚠️ MÁY CHỦ ĐÃ ĐÓNG!"
 	status_label.add_theme_color_override("font_color", Color("#ff5252"))
 
+func _on_username_changed(new_text: String):
+	_update_money_display(new_text)
+
+func _update_money_display(name_str: String):
+	var target_name = name_str.strip_edges()
+	if target_name == "":
+		money_display_label.text = "Số dư mặc định: $ 1000 $"
+	else:
+		var money = NetworkManager.load_player_money(target_name)
+		money_display_label.text = "Số dư tài khoản [" + target_name + "]: $ " + str(money) + " $"
+
 func _get_name():
 	var n = username_input.text.strip_edges()
 	return n if n != "" else "Gambler_" + str(randi() % 1000)
@@ -362,7 +392,9 @@ func _get_name():
 # ============================================================
 func _on_host():
 	NetworkManager.is_single_player = false
-	if NetworkManager.host_game(_get_name()):
+	var name_input = _get_name()
+	NetworkManager.save_last_username(name_input)
+	if NetworkManager.host_game(name_input):
 		_show_lobby()
 		start_btn.show()
 		
@@ -380,9 +412,11 @@ func _on_host():
 
 func _on_join():
 	NetworkManager.is_single_player = false
+	var name_input = _get_name()
+	NetworkManager.save_last_username(name_input)
 	var ip = ip_input.text.strip_edges()
 	if ip == "": ip = "127.0.0.1"
-	if NetworkManager.join_game(ip, _get_name()):
+	if NetworkManager.join_game(ip, name_input):
 		_show_lobby()
 		lobby_title_label.text = "ĐANG KẾT NỐI..."
 		ip_display_label.text = "Kết nối đến: " + ip
@@ -390,6 +424,7 @@ func _on_join():
 
 func _on_single_player():
 	var name_input = _get_name()
+	NetworkManager.save_last_username(name_input)
 	NetworkManager.is_single_player = true
 	NetworkManager.my_name = name_input
 	NetworkManager.players = {

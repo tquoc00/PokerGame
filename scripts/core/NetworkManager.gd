@@ -31,6 +31,26 @@ func save_player_money(p_name: String, amount: int):
 	if err != OK:
 		print("Lỗi lưu trữ số dư tài khoản của: ", p_name)
 
+# Tải tên người chơi cuối cùng đã sử dụng
+func load_last_username() -> String:
+	var config = ConfigFile.new()
+	if not FileAccess.file_exists(SAVE_PATH):
+		return ""
+	var err = config.load(SAVE_PATH)
+	if err == OK:
+		return config.get_value("settings", "last_username", "")
+	return ""
+
+# Lưu tên người chơi cuối cùng đã sử dụng
+func save_last_username(p_name: String):
+	var config = ConfigFile.new()
+	if FileAccess.file_exists(SAVE_PATH):
+		config.load(SAVE_PATH)
+	config.set_value("settings", "last_username", p_name)
+	var err = config.save(SAVE_PATH)
+	if err != OK:
+		print("Lỗi lưu cài đặt tên người chơi")
+
 func host_game(player_name: String):
 	if OS.has_feature("web"):
 		print("Web browser cannot host a WebSocket server!")
@@ -105,7 +125,7 @@ func _on_server_disconnected():
 	get_tree().change_scene_to_file("res://scenes/main/Menu.tscn")
 
 @rpc("any_peer", "reliable")
-func register_player(id: int, p_name: String, p_money: int):
+func register_player(id: int, p_name: String, p_money: int = 1000):
 	if multiplayer.is_server():
 		if players.size() >= MAX_PLAYERS:
 			rpc_id(id, "client_reject_join", "PHÒNG ĐÃ ĐẦY! (TỐI ĐA 4 NGƯỜI)")
