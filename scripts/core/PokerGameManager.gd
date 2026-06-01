@@ -16,8 +16,8 @@ var current_round_bet: int = 100
 
 var my_hand: Array[Card] = []
 var turn_order: Array = [] # Array of peer_ids
-var current_turn_idx: int = 0
-var active_players: Dictionary = {} # peer_id -> { has_folded: bool, money_bet: int }
+var phase_turn_queue: Array = [] # Hàng chờ người chơi cần hành động trong vòng cược hiện tại
+var active_players: Dictionary = {} # peer_id -> { has_folded: bool, money_bet: int, is_all_in: bool }
 var server_player_hands: Dictionary = {} # peer_id -> Array[Card]
 
 # --- UI references ---
@@ -646,12 +646,18 @@ func server_handle_player_disconnect(disconnected_id: int):
 		_check_all_ready()
 		return
 		
-	# 5. Nếu đang chơi giữa trận: Cho người này Fold bài
+	# 5. Nếu đang chơi giữa trận: Cho người này Fold bài và xóa khỏi hàng chờ lượt
 	if active_players.has(disconnected_id):
 		active_players[disconnected_id].has_folded = true
 		
+	var was_their_turn = false
+	if not phase_turn_queue.is_empty() and phase_turn_queue[0] == disconnected_id:
+		was_their_turn = true
+		
+	phase_turn_queue.erase(disconnected_id)
+		
 	# 6. Nếu đến lượt người chơi này, tự động chuyển lượt sang người kế tiếp
-	if turn_order.size() > current_turn_idx and turn_order[current_turn_idx] == disconnected_id:
+	if was_their_turn:
 		_server_next_turn()
 	else:
 		# Kiểm tra xem ván đấu có kết thúc sớm vì những người khác đã fold không
@@ -761,6 +767,12 @@ func _spawn_card(card: Card, target: Vector2, face_up: bool) -> CardUI:
 # ============================================================
 # SERVER LOGIC
 # ============================================================
+func _reset_phase_turn_queue():
+	phase_turn_queue.clear()
+	for pid in turn_order:
+		if active_players.has(pid) and not active_players[pid].has_folded and not active_players[pid].is_all_in:
+			phase_turn_queue.append(pid)
+
 func start_server_game(starting_bet: int):
 	deck = Deck.new()
 	deck.shuffle()
@@ -769,7 +781,6 @@ func start_server_game(starting_bet: int):
 	pot_money = starting_bet * NetworkManager.players.size()
 	state = GameState.PRE_FLOP
 	turn_order = NetworkManager.players.keys()
-	current_turn_idx = 0
 	
 	active_players.clear()
 	for pid in turn_order:
@@ -796,8 +807,9 @@ func start_server_game(starting_bet: int):
 		community_cards.append(c)
 		comm_data.append({"suit": c.suit, "rank": c.rank})
 		
+	_reset_phase_turn_queue()
 	# Broadcast Start
-	send_rpc("client_start_game", [hand_data, comm_data, pot_money, turn_order[current_turn_idx]])
+	send_rpc("client_start_game", [hand_data, comm_data, pot_money, phase_turn_queue[0]])
 
 @rpc("any_peer", "reliable", "call_local")
 func _send_action(action: String):
@@ -805,7 +817,7 @@ func _send_action(action: String):
 	if sender_id == 0: sender_id = 1 # Fallback an toàn nếu gọi trực tiếp trên Server
 	if not multiplayer.is_server(): return
 	if state == GameState.SHOWDOWN or state == GameState.WAITING: return
-	if sender_id != turn_order[current_turn_idx]: return # Not their turn
+	if phase_turn_queue.is_empty() or sender_id != phase_turn_queue[0]: return # Not their turn
 	
 	if action == "FOLD":
 		active_players[sender_id].has_folded = true
@@ -846,7 +858,7 @@ func _send_action(action: String):
 	_server_next_turn()
 
 func _server_next_turn():
-	# Kiểm tra xem có cần bỏ qua vòng cược nếu mọi người (hoặc trừ tối đa 1 người) đã All-in
+	# Kiểm tra xem có cần bỏ qua vòng cược nếu mọi người (hoặc trừ tối đa 1 người) đã All-in hoặc Fold
 	var active_not_folded = 0
 	var players_not_all_in = 0
 	for pid in active_players:
@@ -854,6 +866,11 @@ func _server_next_turn():
 			active_not_folded += 1
 			if not active_players[pid].is_all_in:
 				players_not_all_in += 1
+				
+	if active_not_folded <= 1:
+		# Người duy nhất còn lại thắng lập tức!
+		_server_force_showdown()
+		return
 				
 	if active_not_folded >= 2 and players_not_all_in <= 1:
 		# Tất cả (hoặc tất cả trừ 1 người) đã All-in. Tự động lật hết bài chung và Showdown!
@@ -865,23 +882,30 @@ func _server_next_turn():
 		_server_force_showdown()
 		return
 
-	current_turn_idx = (current_turn_idx + 1) % turn_order.size()
-	
-	# Lặp qua đến khi gặp người chưa fold và chưa All-in
-	var start_idx = current_turn_idx
-	while active_players[turn_order[current_turn_idx]].has_folded or active_players[turn_order[current_turn_idx]].is_all_in:
-		current_turn_idx = (current_turn_idx + 1) % turn_order.size()
-		if current_turn_idx == start_idx: break # Everyone folded or is all-in?
-	
-	# Tạm thời đơn giản: Đổi vòng ngay nếu ai cũng đánh 1 lượt
-	if current_turn_idx == 0:
+	# Xóa người chơi vừa hành động ra khỏi hàng chờ của vòng này
+	if not phase_turn_queue.is_empty():
+		phase_turn_queue.pop_front()
+		
+	# Nếu hàng chờ trống -> Đổi vòng cược mới!
+	if phase_turn_queue.is_empty():
 		if state == GameState.PRE_FLOP: state = GameState.FLOP
 		elif state == GameState.FLOP: state = GameState.TURN
 		elif state == GameState.TURN: state = GameState.RIVER
-		elif state == GameState.RIVER: _server_force_showdown(); return
+		elif state == GameState.RIVER: 
+			_server_force_showdown()
+			return
+			
 		send_rpc("client_advance_phase", [state])
+		_reset_phase_turn_queue()
 		
-	send_rpc("client_sync_turn", [turn_order[current_turn_idx]])
+		# Nếu sau khi reset vẫn trống (ví dụ do mọi người all-in tiếp)
+		if phase_turn_queue.is_empty():
+			_server_next_turn()
+			return
+			
+	# Đồng bộ lượt cho người đầu tiên trong hàng chờ
+	var next_player_id = phase_turn_queue[0]
+	send_rpc("client_sync_turn", [next_player_id])
 
 func _server_force_showdown():
 	state = GameState.SHOWDOWN
@@ -1527,7 +1551,7 @@ func _on_bot_turn(bot_id: int):
 	# Chờ 1.2 - 2.2 giây tạo hiệu ứng suy nghĩ thực tế
 	await get_tree().create_timer(randf_range(1.2, 2.2)).timeout
 	if state == GameState.SHOWDOWN or state == GameState.WAITING: return
-	if turn_order.is_empty() or turn_order[current_turn_idx] != bot_id: return
+	if phase_turn_queue.is_empty() or phase_turn_queue[0] != bot_id: return
 	
 	# Nếu Bot đã All-in, tự động chuyển lượt mà không thực hiện hành động
 	if active_players.has(bot_id) and active_players[bot_id].is_all_in:
@@ -1593,13 +1617,13 @@ func _on_bot_turn(bot_id: int):
 
 func _process_bot_action(bot_id: int, action: String):
 	if state == GameState.SHOWDOWN or state == GameState.WAITING: return
-	if turn_order[current_turn_idx] != bot_id: return
+	if phase_turn_queue.is_empty() or phase_turn_queue[0] != bot_id: return
 	
 	if action == "FOLD":
 		active_players[bot_id].has_folded = true
 		send_rpc("client_sync_pot", [pot_money, bot_id, "FOLD"])
 	elif action == "CALL":
-		var bet_amount = min(current_round_bet, NetworkManager.players[bot_id].money)
+		var bet_amount = current_round_bet
 		NetworkManager.players[bot_id].money -= bet_amount
 		pot_money += bet_amount
 		send_rpc("client_sync_money", [bot_id, NetworkManager.players[bot_id].money])
@@ -1609,11 +1633,17 @@ func _process_bot_action(bot_id: int, action: String):
 		all_in_challenger_id = bot_id
 		all_in_responses.clear()
 		
-		# Bot cược toàn bộ tiền và chọn IN
+		active_players[bot_id].is_all_in = true
+		
 		var bet_amount = NetworkManager.players[bot_id].money
-		NetworkManager.players[bot_id].money = 0
+		if bet_amount <= 0:
+			bet_amount = current_round_bet * 3
+			NetworkManager.players[bot_id].money -= bet_amount
+		else:
+			NetworkManager.players[bot_id].money = 0
+			
 		pot_money += bet_amount
-		send_rpc("client_sync_money", [bot_id, 0])
+		send_rpc("client_sync_money", [bot_id, NetworkManager.players[bot_id].money])
 		send_rpc("client_sync_pot", [pot_money, bot_id, "ALL_IN"])
 		
 		all_in_responses[bot_id] = "IN"
