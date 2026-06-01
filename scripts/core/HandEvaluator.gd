@@ -24,102 +24,132 @@ class EvaluationResult:
 		self.score = p_score
 		self.name = p_name
 
-# Đánh giá tập hợp bài (kết hợp 2 lá trên tay + 5 lá chung = 7 lá)
+# Đánh giá tập hợp bài (kết hợp 2 lá trên tay + 5 lá chung = 7 lá) để tìm tổ hợp 5 lá tốt nhất
 static func evaluate(cards: Array[Card]) -> EvaluationResult:
 	if cards.size() < 5:
 		return EvaluationResult.new(HandRank.HIGH_CARD, 0, "Chưa đủ bài")
 		
-	# 1. Sắp xếp bài theo giá trị giảm dần
-	var sorted_cards = cards.duplicate()
-	sorted_cards.sort_custom(func(a, b): return a.rank > b.rank)
+	# Lấy tất cả các hoán vị 5 lá từ 7 lá để tìm 5 lá mạnh nhất theo đúng luật Poker Texas Hold'em
+	var best_result: EvaluationResult = null
 	
-	# 2. Đếm số lượng các chất (suit) và bậc (rank)
-	var rank_counts = {}
-	var suit_counts = {}
+	var n = cards.size()
+	# Tạo ra tất cả các bộ 5 lá bài
+	for i in range(0, n - 4):
+		for j in range(i + 1, n - 3):
+			for k in range(j + 1, n - 2):
+				for l in range(k + 1, n - 1):
+					for m in range(l + 1, n):
+						var combo: Array[Card] = [cards[i], cards[j], cards[k], cards[l], cards[m]]
+						var res = _evaluate_5_cards(combo)
+						if best_result == null or res.rank > best_result.rank or (res.rank == best_result.rank and res.score > best_result.score):
+							best_result = res
+							
+	return best_result
+
+# Đánh giá chính xác bộ 5 lá
+static func _evaluate_5_cards(hand: Array[Card]) -> EvaluationResult:
+	# 1. Sắp xếp 5 lá theo bậc từ cao xuống thấp
+	var sorted = hand.duplicate()
+	sorted.sort_custom(func(a, b): return a.rank > b.rank)
 	
-	for card in sorted_cards:
-		rank_counts[card.rank] = rank_counts.get(card.rank, 0) + 1
-		suit_counts[card.suit] = suit_counts.get(card.suit, 0) + 1
-		
-	# 3. Phân tích kết quả đếm
-	var is_flush = false
-	var flush_suit = -1
-	for suit in suit_counts:
-		if suit_counts[suit] >= 5:
-			is_flush = true
-			flush_suit = suit
+	var is_flush = true
+	var target_suit = sorted[0].suit
+	for card in sorted:
+		if card.suit != target_suit:
+			is_flush = false
 			break
 			
-	var pairs = []
-	var threes = []
-	var fours = []
+	# Kiểm tra sảnh
+	var is_straight = false
+	var straight_high_rank = sorted[0].rank
 	
-	for rank in rank_counts:
-		var count = rank_counts[rank]
-		if count == 4: fours.append(rank)
-		elif count == 3: threes.append(rank)
-		elif count == 2: pairs.append(rank)
+	if sorted[0].rank - sorted[4].rank == 4:
+		# Sảnh bình thường (liên tiếp 5 bậc)
+		is_straight = true
+		for idx in range(1, 5):
+			if sorted[idx-1].rank - sorted[idx].rank != 1:
+				is_straight = false
+				break
+	elif sorted[0].rank == Card.Rank.ACE and sorted[1].rank == Card.Rank.FIVE and sorted[2].rank == Card.Rank.FOUR and sorted[3].rank == Card.Rank.THREE and sorted[4].rank == Card.Rank.TWO:
+		# Sảnh đặc biệt A-2-3-4-5 (Ace-low straight, Ace đóng vai trò lá số 1)
+		is_straight = true
+		straight_high_rank = Card.Rank.FIVE
 		
-	# Sắp xếp để lấy rank cao nhất lên đầu
-	pairs.sort_custom(func(a, b): return a > b)
-	threes.sort_custom(func(a, b): return a > b)
+	# Đếm số lượng bậc giống nhau
+	var rank_counts = {}
+	for card in sorted:
+		rank_counts[card.rank] = rank_counts.get(card.rank, 0) + 1
+		
+	var fours = []
+	var threes = []
+	var pairs = []
 	
-	# 4. Kiểm tra Sảnh (Straight)
-	var unique_ranks = rank_counts.keys()
-	unique_ranks.sort_custom(func(a, b): return a > b)
-	var straight_high = check_straight(unique_ranks)
+	for r in rank_counts:
+		var c = rank_counts[r]
+		if c == 4: fours.append(r)
+		elif c == 3: threes.append(r)
+		elif c == 2: pairs.append(r)
+		
+	fours.sort_custom(func(a,b): return a > b)
+	threes.sort_custom(func(a,b): return a > b)
+	pairs.sort_custom(func(a,b): return a > b)
 	
-	# 5. Xác định thứ hạng (từ cao xuống thấp)
-	# Tạm bỏ qua Straight Flush/Royal Flush ở bản demo này để tránh code quá dài.
+	# 2. XÁC ĐỊNH BẬC TỔ HỢP & TÍNH SCORE ĐỂ SO SÁNH TIE-BREAKER (KICKERS)
 	
+	# Thùng phá Sảnh / Thùng phá Sảnh Hoàng Gia
+	if is_flush and is_straight:
+		if straight_high_rank == Card.Rank.ACE:
+			return EvaluationResult.new(HandRank.ROYAL_FLUSH, 0, "Thung pha Sanh Hoang Gia (Royal Flush)")
+		else:
+			return EvaluationResult.new(HandRank.STRAIGHT_FLUSH, int(straight_high_rank), "Thung pha Sanh (Straight Flush)")
+			
 	# Tứ Quý (Four of a Kind)
 	if fours.size() > 0:
-		return EvaluationResult.new(HandRank.FOUR_OF_A_KIND, fours[0] * 1000, "Tứ Quý (Four of a Kind)")
+		var kicker = _get_kickers(sorted, fours)
+		var score = (fours[0] << 4) + kicker[0]
+		return EvaluationResult.new(HandRank.FOUR_OF_A_KIND, score, "Tu Quy (Four of a Kind)")
 		
 	# Cù Lũ (Full House)
-	if (threes.size() > 0 and pairs.size() > 0) or threes.size() > 1:
-		return EvaluationResult.new(HandRank.FULL_HOUSE, threes[0] * 1000, "Cù Lũ (Full House)")
+	if threes.size() > 0 and pairs.size() > 0:
+		var score = (threes[0] << 4) + pairs[0]
+		return EvaluationResult.new(HandRank.FULL_HOUSE, score, "Cu Lu (Full House)")
 		
 	# Thùng (Flush)
 	if is_flush:
-		return EvaluationResult.new(HandRank.FLUSH, 8000, "Thùng (Flush)")
+		# Điểm thùng dựa vào bậc của cả 5 lá theo thứ tự giảm dần
+		var score = (sorted[0].rank << 16) + (sorted[1].rank << 12) + (sorted[2].rank << 8) + (sorted[3].rank << 4) + sorted[4].rank
+		return EvaluationResult.new(HandRank.FLUSH, score, "Thung (Flush)")
 		
 	# Sảnh (Straight)
-	if straight_high > 0:
-		return EvaluationResult.new(HandRank.STRAIGHT, straight_high * 100, "Sảnh (Straight)")
+	if is_straight:
+		return EvaluationResult.new(HandRank.STRAIGHT, int(straight_high_rank), "Sanh (Straight)")
 		
 	# Sám Cô (Three of a Kind)
 	if threes.size() > 0:
-		return EvaluationResult.new(HandRank.THREE_OF_A_KIND, threes[0] * 100, "Sám Cô (Three of a Kind)")
+		var kickers = _get_kickers(sorted, threes)
+		var score = (threes[0] << 8) + (kickers[0] << 4) + kickers[1]
+		return EvaluationResult.new(HandRank.THREE_OF_A_KIND, score, "Sam Co (Three of a Kind)")
 		
 	# Thú (Two Pair)
 	if pairs.size() >= 2:
-		var score = pairs[0] * 100 + pairs[1]
-		return EvaluationResult.new(HandRank.TWO_PAIR, score, "Thú (Two Pair)")
+		var kickers = _get_kickers(sorted, [pairs[0], pairs[1]])
+		var score = (pairs[0] << 8) + (pairs[1] << 4) + kickers[0]
+		return EvaluationResult.new(HandRank.TWO_PAIR, score, "Thu (Two Pair)")
 		
 	# Đôi (One Pair)
 	if pairs.size() == 1:
-		return EvaluationResult.new(HandRank.PAIR, pairs[0] * 10, "Một Đôi (One Pair)")
+		var kickers = _get_kickers(sorted, [pairs[0]])
+		var score = (pairs[0] << 12) + (kickers[0] << 8) + (kickers[1] << 4) + kickers[2]
+		return EvaluationResult.new(HandRank.PAIR, score, "Mot Doi (One Pair)")
 		
 	# Mậu Thầu (High Card)
-	return EvaluationResult.new(HandRank.HIGH_CARD, sorted_cards[0].rank, "Mậu Thầu (High Card)")
+	var score = (sorted[0].rank << 16) + (sorted[1].rank << 12) + (sorted[2].rank << 8) + (sorted[3].rank << 4) + sorted[4].rank
+	return EvaluationResult.new(HandRank.HIGH_CARD, score, "Mau Thau (High Card)")
 
-static func check_straight(unique_ranks: Array) -> int:
-	if unique_ranks.size() < 5: return 0
-	var consecutive = 1
-	var high_rank = unique_ranks[0]
-	
-	for i in range(1, unique_ranks.size()):
-		if unique_ranks[i-1] - unique_ranks[i] == 1:
-			consecutive += 1
-			if consecutive == 5:
-				return high_rank
-		else:
-			consecutive = 1
-			high_rank = unique_ranks[i]
-			
-	# Trường hợp đặc biệt: Sảnh A, 2, 3, 4, 5 (Godot rank: ACE = 14)
-	if consecutive == 4 and unique_ranks[0] == Card.Rank.ACE and unique_ranks.back() == Card.Rank.TWO:
-		return Card.Rank.FIVE
-		
-	return 0
+# Lấy danh sách các lá bài rác (kickers) không tham gia vào tổ hợp chính để làm tie-breaker
+static func _get_kickers(sorted_hand: Array[Card], exclude_ranks: Array) -> Array[int]:
+	var kickers: Array[int] = []
+	for card in sorted_hand:
+		if not exclude_ranks.has(card.rank):
+			kickers.append(int(card.rank))
+	return kickers
