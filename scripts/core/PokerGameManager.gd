@@ -26,17 +26,13 @@ var pot_bullet_container: HBoxContainer
 var btn_fold: Button
 var btn_call: Button
 var btn_all_in: Button
+var btn_start_round: Button
 var player_panels: Dictionary = {} # peer_id -> { panel, name_label, bullet_box, card_uis: Array[CardUI] }
 var community_card_uis: Array[CardUI] = []
 var card_scene: PackedScene = preload("res://scenes/prefabs/CardUI.tscn")
 
 func _ready():
 	_build_ui()
-	
-	if multiplayer.is_server():
-		# Đợi 1 chút cho mọi người load xong scene
-		await get_tree().create_timer(1.0).timeout
-		start_server_game()
 
 # ============================================================
 # UI CONSTRUCTION
@@ -118,6 +114,18 @@ func _build_ui():
 	btn_fold = _create_btn("✕ FOLD", Color("#c62828")); btn_fold.pressed.connect(func(): _send_action("FOLD"))
 	btn_container.add_child(btn_all_in); btn_container.add_child(btn_call); btn_container.add_child(btn_fold)
 	_disable_buttons()
+	
+	if multiplayer.is_server():
+		btn_start_round = _create_btn("▶ CHIA BÀI", Color("#1565c0"))
+		btn_start_round.position = Vector2(540, 360)
+		btn_start_round.size = Vector2(200, 60)
+		btn_start_round.pressed.connect(_on_host_start_round)
+		add_child(btn_start_round)
+		info_label.text = "CHỦ PHÒNG HÃY BẤM CHIA BÀI ĐỂ BẮT ĐẦU"
+
+func _on_host_start_round():
+	btn_start_round.hide()
+	start_server_game()
 
 func _create_player_ui(peer_id: int, p_name: String, pos: Vector2, accent: Color):
 	var panel = PanelContainer.new()
@@ -275,7 +283,10 @@ func _server_force_showdown():
 	rpc("client_showdown")
 	
 	await get_tree().create_timer(5.0).timeout
-	start_server_game()
+	
+	if multiplayer.is_server():
+		btn_start_round.show()
+		info_label.text = "VÁN ĐẤU KẾT THÚC! CHỦ PHÒNG BẤM CHIA BÀI ĐỂ TIẾP TỤC"
 
 # ============================================================
 # CLIENT LOGIC (RPCs)
