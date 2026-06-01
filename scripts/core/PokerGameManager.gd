@@ -38,6 +38,15 @@ var is_mouse_over_trigger: bool = false
 var is_mouse_over_popup: bool = false
 var _guide_tween: Tween
 
+# All-In Challenge State & UI
+var is_all_in_challenge: bool = false
+var all_in_challenger_id: int = -1
+var all_in_responses: Dictionary = {}
+var challenge_panel: PanelContainer
+var challenge_lbl: Label
+var challenge_btn_in: Button
+var challenge_btn_out: Button
+
 func _ready():
 	_build_ui()
 	# Báo cáo lên Server thông qua Autoload NetworkManager (Đảm bảo 100% không bị mất gói tin)
@@ -110,6 +119,68 @@ func _build_ui():
 	elim_overlay.color = Color(1, 0, 0, 0)
 	elim_overlay.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(elim_overlay)
+	
+	# All-In Challenge Overlay Panel (Thiết kế phong cách Sinh tử đỏ đen cực chất)
+	challenge_panel = PanelContainer.new()
+	var cp_style = StyleBoxFlat.new()
+	cp_style.bg_color = Color(0.12, 0.03, 0.03, 0.95) # Dark velvet-red
+	cp_style.set_border_width_all(3)
+	cp_style.border_color = Color("#ff1744") # Blood red border
+	cp_style.set_corner_radius_all(18)
+	cp_style.content_margin_left = 24
+	cp_style.content_margin_right = 24
+	cp_style.content_margin_top = 20
+	cp_style.content_margin_bottom = 20
+	cp_style.shadow_size = 40
+	cp_style.shadow_color = Color(0, 0, 0, 0.8)
+	challenge_panel.add_theme_stylebox_override("panel", cp_style)
+	challenge_panel.position = Vector2(340, 160)
+	challenge_panel.size = Vector2(600, 260)
+	challenge_panel.hide()
+	add_child(challenge_panel)
+	
+	var cp_vbox = VBoxContainer.new()
+	cp_vbox.add_theme_constant_override("separation", 16)
+	challenge_panel.add_child(cp_vbox)
+	
+	var cp_title = Label.new()
+	cp_title.text = "⚡ THỬ THÁCH SINH TỬ ALL-IN ⚡"
+	cp_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	cp_title.add_theme_font_size_override("font_size", 22)
+	cp_title.add_theme_color_override("font_color", Color("#ff1744"))
+	cp_title.add_theme_constant_override("outline_size", 2)
+	cp_title.add_theme_color_override("font_outline_color", Color.BLACK)
+	cp_vbox.add_child(cp_title)
+	
+	challenge_lbl = Label.new()
+	challenge_lbl.text = "Có người đã ALL-IN! Hãy chọn sinh tử..."
+	challenge_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	challenge_lbl.autowrap_mode = TextServer.AUTOWRAP_WORD
+	challenge_lbl.add_theme_font_size_override("font_size", 16)
+	challenge_lbl.add_theme_color_override("font_color", Color.WHITE)
+	cp_vbox.add_child(challenge_lbl)
+	
+	var cp_hbox = HBoxContainer.new()
+	cp_hbox.alignment = BoxContainer.ALIGNMENT_CENTER
+	cp_hbox.add_theme_constant_override("separation", 30)
+	cp_vbox.add_child(cp_hbox)
+	
+	challenge_btn_in = _create_btn("IN (Theo mạng)", Color("#2e7d32"))
+	challenge_btn_in.custom_minimum_size = Vector2(200, 45)
+	challenge_btn_in.pressed.connect(func():
+		challenge_panel.hide()
+		rpc_id(1, "server_respond_all_in_challenge", "IN")
+	)
+	cp_hbox.add_child(challenge_btn_in)
+	
+	challenge_btn_out = _create_btn("OUT (Úp bài)", Color("#c62828"))
+	challenge_btn_out.custom_minimum_size = Vector2(200, 45)
+	challenge_btn_out.pressed.connect(func():
+		challenge_panel.hide()
+		rpc_id(1, "server_respond_all_in_challenge", "OUT")
+	)
+	cp_hbox.add_child(challenge_btn_out)
+
 	
 	# POT
 	var pot_area = VBoxContainer.new()
@@ -731,21 +802,23 @@ func _send_action(action: String):
 		rpc("client_sync_money", sender_id, NetworkManager.players[sender_id].money)
 		
 	elif action == "ALL_IN":
+		is_all_in_challenge = true
+		all_in_challenger_id = sender_id
+		all_in_responses.clear()
+		
+		# Challenger cược toàn bộ tiền và chọn IN
 		var bet_amount = NetworkManager.players[sender_id].money
 		NetworkManager.players[sender_id].money = 0
 		pot_money += bet_amount
 		rpc("client_sync_money", sender_id, 0)
-	
-	rpc("client_sync_pot", pot_money, sender_id, action)
-	
-	# Check if all folded except one
-	var active_count = 0
-	for pid in active_players:
-		if not active_players[pid].has_folded: active_count += 1
+		rpc("client_sync_pot", pot_money, sender_id, action)
 		
-	if active_count <= 1 or action == "ALL_IN":
-		_server_force_showdown()
+		all_in_responses[sender_id] = "IN"
+		
+		var challenger_name = NetworkManager.players[sender_id].name if NetworkManager.players.has(sender_id) else "Người chơi"
+		rpc("client_trigger_all_in_challenge", sender_id, challenger_name)
 		return
+
 	
 	# Next turn
 	_server_next_turn()
@@ -968,4 +1041,117 @@ func _disable_buttons():
 	btn_call.disabled = true; btn_fold.disabled = true; btn_all_in.disabled = true
 
 func _enable_buttons():
-	btn_call.disabled = false; btn_fold.disabled = false; btn_all_in.disabled = false
+	btn_call.disabled = false
+	btn_fold.disabled = false
+	# All-in chỉ được phép dùng từ vòng 2 (FLOP trở đi)
+	btn_all_in.disabled = (state == GameState.PRE_FLOP)
+
+@rpc("authority", "reliable", "call_local")
+func client_trigger_all_in_challenge(challenger_id: int, challenger_name: String):
+	var my_id = multiplayer.get_unique_id()
+	_disable_buttons()
+	
+	if my_id == challenger_id:
+		info_label.text = "BẠN ĐÃ ALL-IN! Đang chờ đối thủ sinh tử..."
+		return
+		
+	var is_folded = false
+	if active_players.has(my_id):
+		is_folded = active_players[my_id].has_folded
+		
+	if is_folded:
+		info_label.text = challenger_name.to_upper() + " ĐÃ ALL-IN! Đang chờ đối thủ..."
+		return
+		
+	challenge_lbl.text = challenger_name.to_upper() + " đã cược toàn bộ số tiền!\nHãy chọn tiếp tục sinh tử (IN) hoặc úp bài chấp nhận mất cược (OUT)"
+	challenge_panel.move_to_front()
+	challenge_panel.show()
+
+@rpc("any_peer", "reliable", "call_local")
+func server_respond_all_in_challenge(response: String):
+	var sender_id = multiplayer.get_remote_sender_id()
+	if sender_id == 0: sender_id = 1
+	if not multiplayer.is_server(): return
+	if not is_all_in_challenge: return
+	
+	all_in_responses[sender_id] = response
+	
+	var responder_name = NetworkManager.players[sender_id].name if NetworkManager.players.has(sender_id) else "Người chơi"
+	var response_text = "ĐÃ THEO (IN)" if response == "IN" else "ĐÃ RÚT LUI (OUT)"
+	rpc("client_log_challenge_response", responder_name, response_text)
+	
+	# Kiểm tra xem tất cả người chơi hoạt động đã phản hồi chưa
+	var all_responded = true
+	for pid in active_players:
+		if active_players[pid].has_folded: continue
+		if not all_in_responses.has(pid):
+			all_responded = false
+			break
+			
+	if all_responded:
+		_server_process_all_in_results()
+
+@rpc("authority", "reliable", "call_local")
+func client_log_challenge_response(r_name: String, r_text: String):
+	info_label.text = r_name + " " + r_text + " thử thách ALL-IN!"
+
+func _server_process_all_in_results():
+	is_all_in_challenge = false
+	
+	# Áp dụng OUT (Fold)
+	for pid in all_in_responses:
+		if all_in_responses[pid] == "OUT":
+			active_players[pid].has_folded = true
+			rpc("client_sync_pot", pot_money, pid, "FOLD")
+			
+	# Áp dụng IN (All-in)
+	for pid in all_in_responses:
+		if all_in_responses[pid] == "IN" and pid != all_in_challenger_id:
+			var balance = NetworkManager.players[pid].money
+			NetworkManager.players[pid].money = 0
+			pot_money += balance
+			rpc("client_sync_money", pid, 0)
+			rpc("client_sync_pot", pot_money, pid, "ALL_IN")
+			
+	# Kiểm tra số người chơi còn lại
+	var active_count = 0
+	var last_active_pid = -1
+	for pid in active_players:
+		if not active_players[pid].has_folded:
+			active_count += 1
+			last_active_pid = pid
+			
+	if active_count <= 1:
+		_server_force_instant_winner(last_active_pid)
+	else:
+		_server_force_showdown()
+
+func _server_force_instant_winner(winner_pid: int):
+	state = GameState.SHOWDOWN
+	rpc("client_advance_phase", state)
+	
+	var winner_name = "Challenger"
+	var won_amount = pot_money
+	var eliminated_name = ""
+	
+	if winner_pid != -1:
+		winner_name = NetworkManager.players[winner_pid].name if NetworkManager.players.has(winner_pid) else "Người chơi"
+		NetworkManager.players[winner_pid].money += pot_money
+		rpc("client_sync_money", winner_pid, NetworkManager.players[winner_pid].money)
+		
+	for pid in active_players:
+		if NetworkManager.players[pid].money <= 0:
+			eliminated_name = NetworkManager.players[pid].name
+			break
+			
+	rpc("client_announce_result", winner_name, "Mọi đối thủ đã rút lui", "", won_amount, eliminated_name)
+	
+	await get_tree().create_timer(5.0).timeout
+	
+	if multiplayer.is_server():
+		var host_settings = get_node_or_null("HostSettings")
+		if host_settings:
+			host_settings.show()
+		if btn_start_round:
+			btn_start_round.show()
+		info_label.text = "VÁN ĐẤU KẾT THÚC! CHỦ PHÒNG BẤM CHIA BÀI ĐỂ TIẾP TỤC"
