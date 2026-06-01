@@ -91,6 +91,18 @@ func _ready():
 	lobby_panel.add_child(start_btn)
 	
 	NetworkManager.player_list_changed.connect(_update_lobby)
+	multiplayer.connection_failed.connect(_on_connection_error)
+	multiplayer.server_disconnected.connect(_on_server_died)
+
+func _on_connection_error():
+	var lbl = lobby_panel.get_child(0) as Label
+	lbl.text = "LỖI KẾT NỐI! KIỂM TRA LẠI IP HOẶC LINK NGROK"
+	lbl.add_theme_color_override("font_color", Color.RED)
+
+func _on_server_died():
+	var lbl = lobby_panel.get_child(0) as Label
+	lbl.text = "MÁY CHỦ ĐÃ ĐÓNG HOẶC MẤT MẠNG!"
+	lbl.add_theme_color_override("font_color", Color.RED)
 
 func _get_name():
 	var n = username_input.text.strip_edges()
