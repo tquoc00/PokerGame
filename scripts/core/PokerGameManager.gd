@@ -263,7 +263,8 @@ func _build_ui():
 	gp_style.shadow_color = Color(0, 0, 0, 0.6)
 	guide_popup.add_theme_stylebox_override("panel", gp_style)
 	guide_popup.position = Vector2(930, 70)
-	guide_popup.size = Vector2(330, 480)
+	guide_popup.size = Vector2(360, 520)
+	guide_popup.position = Vector2(900, 70)
 	guide_popup.visible = false
 	guide_popup.modulate.a = 0.0
 	add_child(guide_popup)
@@ -291,25 +292,135 @@ func _build_ui():
 	
 	var list_vbox = VBoxContainer.new()
 	list_vbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	list_vbox.add_theme_constant_override("separation", 10)
+	list_vbox.add_theme_constant_override("separation", 14)
 	scroll.add_child(list_vbox)
 	
 	var hands_data = [
-		{"name": "1. Royal Flush", "desc": "Sảnh đồng chất cao (10-J-Q-K-A)", "color": "#ffb300"},
-		{"name": "2. Straight Flush", "desc": "Sảnh đồng chất bất kỳ (vd: 5-6-7-8-9)", "color": "#ff8f00"},
-		{"name": "3. Four of a Kind", "desc": "Tứ Quý (4 lá cùng bậc, vd: 4 lá 9)", "color": "#29b6f6"},
-		{"name": "4. Full House", "desc": "Cù Lũ (1 bộ ba + 1 bộ đôi)", "color": "#66bb6a"},
-		{"name": "5. Flush", "desc": "Thùng (5 lá cùng chất, không liên tiếp)", "color": "#ab47bc"},
-		{"name": "6. Straight", "desc": "Sảnh (5 lá liên tiếp, khác chất)", "color": "#26a69a"},
-		{"name": "7. Three of a Kind", "desc": "Sám Cô (3 lá cùng bậc, vd: 3 lá K)", "color": "#d4e157"},
-		{"name": "8. Two Pair", "desc": "Thú (2 cặp đôi khác nhau)", "color": "#ff7043"},
-		{"name": "9. One Pair", "desc": "Một Đôi (2 lá cùng bậc, vd: Đôi A)", "color": "#e0e0e0"},
-		{"name": "10. High Card", "desc": "Mậu Thầu (Lá bài cao nhất trong bộ)", "color": "#9e9e9e"}
+		{
+			"name": "1. Royal Flush",
+			"desc": "Sảnh đồng chất cao (10-J-Q-K-A)",
+			"color": "#ffb300",
+			"cards": [
+				{"r": "A", "s": "♠", "c": "#263238"},
+				{"r": "K", "s": "♠", "c": "#263238"},
+				{"r": "Q", "s": "♠", "c": "#263238"},
+				{"r": "J", "s": "♠", "c": "#263238"},
+				{"r": "10", "s": "♠", "c": "#263238"}
+			]
+		},
+		{
+			"name": "2. Straight Flush",
+			"desc": "Sảnh đồng chất bất kỳ (vd: 5-6-7-8-9)",
+			"color": "#ff8f00",
+			"cards": [
+				{"r": "9", "s": "♥", "c": "#e53935"},
+				{"r": "8", "s": "♥", "c": "#e53935"},
+				{"r": "7", "s": "♥", "c": "#e53935"},
+				{"r": "6", "s": "♥", "c": "#e53935"},
+				{"r": "5", "s": "♥", "c": "#e53935"}
+			]
+		},
+		{
+			"name": "3. Four of a Kind",
+			"desc": "Tứ Quý (4 lá cùng bậc, vd: 4 lá 9)",
+			"color": "#29b6f6",
+			"cards": [
+				{"r": "K", "s": "♠", "c": "#263238"},
+				{"r": "K", "s": "♥", "c": "#e53935"},
+				{"r": "K", "s": "♦", "c": "#e53935"},
+				{"r": "K", "s": "♣", "c": "#263238"},
+				{"r": "3", "s": "♠", "c": "#263238"}
+			]
+		},
+		{
+			"name": "4. Full House",
+			"desc": "Cù Lũ (1 bộ ba + 1 bộ đôi)",
+			"color": "#66bb6a",
+			"cards": [
+				{"r": "10", "s": "♠", "c": "#263238"},
+				{"r": "10", "s": "♥", "c": "#e53935"},
+				{"r": "10", "s": "♦", "c": "#e53935"},
+				{"r": "7", "s": "♣", "c": "#263238"},
+				{"r": "7", "s": "♠", "c": "#263238"}
+			]
+		},
+		{
+			"name": "5. Flush",
+			"desc": "Thùng (5 lá cùng chất, không liên tiếp)",
+			"color": "#ab47bc",
+			"cards": [
+				{"r": "A", "s": "♦", "c": "#e53935"},
+				{"r": "J", "s": "♦", "c": "#e53935"},
+				{"r": "8", "s": "♦", "c": "#e53935"},
+				{"r": "6", "s": "♦", "c": "#e53935"},
+				{"r": "2", "s": "♦", "c": "#e53935"}
+			]
+		},
+		{
+			"name": "6. Straight",
+			"desc": "Sảnh (5 lá liên tiếp, khác chất)",
+			"color": "#26a69a",
+			"cards": [
+				{"r": "8", "s": "♠", "c": "#263238"},
+				{"r": "7", "s": "♥", "c": "#e53935"},
+				{"r": "6", "s": "♦", "c": "#e53935"},
+				{"r": "5", "s": "♣", "c": "#263238"},
+				{"r": "4", "s": "♠", "c": "#263238"}
+			]
+		},
+		{
+			"name": "7. Three of a Kind",
+			"desc": "Sám Cô (3 lá cùng bậc, vd: 3 lá K)",
+			"color": "#d4e157",
+			"cards": [
+				{"r": "Q", "s": "♠", "c": "#263238"},
+				{"r": "Q", "s": "♥", "c": "#e53935"},
+				{"r": "Q", "s": "♦", "c": "#e53935"},
+				{"r": "A", "s": "♣", "c": "#263238"},
+				{"r": "4", "s": "♠", "c": "#263238"}
+			]
+		},
+		{
+			"name": "8. Two Pair",
+			"desc": "Thú (2 cặp đôi khác nhau)",
+			"color": "#ff7043",
+			"cards": [
+				{"r": "J", "s": "♠", "c": "#263238"},
+				{"r": "J", "s": "♥", "c": "#e53935"},
+				{"r": "5", "s": "♦", "c": "#e53935"},
+				{"r": "5", "s": "♣", "c": "#263238"},
+				{"r": "K", "s": "♠", "c": "#263238"}
+			]
+		},
+		{
+			"name": "9. One Pair",
+			"desc": "Một Đôi (2 lá cùng bậc, vd: Đôi A)",
+			"color": "#e0e0e0",
+			"cards": [
+				{"r": "A", "s": "♠", "c": "#263238"},
+				{"r": "A", "s": "♥", "c": "#e53935"},
+				{"r": "K", "s": "♦", "c": "#e53935"},
+				{"r": "9", "s": "♣", "c": "#263238"},
+				{"r": "2", "s": "♠", "c": "#263238"}
+			]
+		},
+		{
+			"name": "10. High Card",
+			"desc": "Mậu Thầu (Lá bài cao nhất trong bộ)",
+			"color": "#9e9e9e",
+			"cards": [
+				{"r": "A", "s": "♠", "c": "#263238"},
+				{"r": "Q", "s": "♥", "c": "#e53935"},
+				{"r": "9", "s": "♦", "c": "#e53935"},
+				{"r": "6", "s": "♣", "c": "#263238"},
+				{"r": "3", "s": "♠", "c": "#263238"}
+			]
+		}
 	]
 	
 	for h in hands_data:
 		var item_vbox = VBoxContainer.new()
-		item_vbox.add_theme_constant_override("separation", 2)
+		item_vbox.add_theme_constant_override("separation", 4)
 		list_vbox.add_child(item_vbox)
 		
 		var item_title = Label.new()
@@ -323,6 +434,46 @@ func _build_ui():
 		item_desc.add_theme_font_size_override("font_size", 11)
 		item_desc.add_theme_color_override("font_color", Color(1, 1, 1, 0.6))
 		item_vbox.add_child(item_desc)
+		
+		# HBox chứa 5 quân bài mini minh họa
+		var cards_hbox = HBoxContainer.new()
+		cards_hbox.add_theme_constant_override("separation", 4)
+		item_vbox.add_child(cards_hbox)
+		
+		for c_info in h.cards:
+			var mini_card = PanelContainer.new()
+			mini_card.custom_minimum_size = Vector2(30, 42)
+			
+			var m_style = StyleBoxFlat.new()
+			m_style.bg_color = Color.WHITE
+			m_style.set_corner_radius_all(4)
+			m_style.set_border_width_all(1)
+			m_style.border_color = Color("#b0bec5")
+			m_style.content_margin_left = 2
+			m_style.content_margin_right = 2
+			m_style.content_margin_top = 2
+			m_style.content_margin_bottom = 2
+			mini_card.add_theme_stylebox_override("panel", m_style)
+			cards_hbox.add_child(mini_card)
+			
+			var card_vbox = VBoxContainer.new()
+			card_vbox.alignment = BoxContainer.ALIGNMENT_CENTER
+			card_vbox.add_theme_constant_override("separation", -4)
+			mini_card.add_child(card_vbox)
+			
+			var r_lbl = Label.new()
+			r_lbl.text = c_info.r
+			r_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+			r_lbl.add_theme_font_size_override("font_size", 12)
+			r_lbl.add_theme_color_override("font_color", Color(c_info.c))
+			card_vbox.add_child(r_lbl)
+			
+			var s_lbl = Label.new()
+			s_lbl.text = c_info.s
+			s_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+			s_lbl.add_theme_font_size_override("font_size", 12)
+			s_lbl.add_theme_color_override("font_color", Color(c_info.c))
+			card_vbox.add_child(s_lbl)
 	
 	# Kết nối sự kiện chuột trỏ vào / trỏ ra để tạo hiệu ứng Pop-up tuyệt đẹp!
 	guide_trigger.mouse_entered.connect(func():
