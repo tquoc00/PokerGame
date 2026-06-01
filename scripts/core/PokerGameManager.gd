@@ -1067,6 +1067,12 @@ func client_trigger_all_in_challenge(challenger_id: int, challenger_name: String
 	var my_id = multiplayer.get_unique_id()
 	_disable_buttons()
 	
+	# Đầu tiên: Kích hoạt các Bot phản hồi nếu chơi đơn offline trên Server
+	if NetworkManager.is_single_player and multiplayer.is_server():
+		for pid in active_players:
+			if pid != 1 and pid != challenger_id and not active_players[pid].has_folded:
+				_on_bot_all_in_challenge(pid)
+	
 	if my_id == challenger_id:
 		info_label.text = "BẠN ĐÃ ALL-IN! Đang chờ đối thủ sinh tử..."
 		return
@@ -1082,11 +1088,6 @@ func client_trigger_all_in_challenge(challenger_id: int, challenger_name: String
 	challenge_lbl.text = challenger_name.to_upper() + " đã cược toàn bộ số tiền!\nHãy chọn tiếp tục sinh tử (IN) hoặc úp bài chấp nhận mất cược (OUT)"
 	challenge_panel.move_to_front()
 	challenge_panel.show()
-	
-	if NetworkManager.is_single_player and multiplayer.is_server():
-		for pid in active_players:
-			if pid != 1 and pid != challenger_id and not active_players[pid].has_folded:
-				_on_bot_all_in_challenge(pid)
 
 @rpc("any_peer", "reliable", "call_local")
 func server_respond_all_in_challenge(response: String):
